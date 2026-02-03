@@ -1,0 +1,17 @@
+[project]
+name = "salesforce-adk"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "google-adk>=1.23.0",
+    "python-dotenv>=1.2.1",
+    "simple-salesforce>=1.12.9",
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.408",
+    "ruff>=0.14.14",
+]
