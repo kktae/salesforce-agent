@@ -101,6 +101,7 @@ class DeploymentManager:
             "google-adk",
             "simple-salesforce",
             "python-dotenv",
+            "litellm",
         ]
 
     @staticmethod
