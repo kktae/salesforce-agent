@@ -11,6 +11,7 @@ from simple_salesforce.api import Salesforce
 
 from salesforce_adk.auth import (
     AGENTSPACE_MODE,
+    SALESFORCE_API_VERSION,
     SALESFORCE_AUTH_CONFIG,
     SALESFORCE_AUTH_ID,
     SALESFORCE_INSTANCE_URL,
@@ -117,7 +118,7 @@ class SalesforceToolset(BaseToolset):
                     "error": "SALESFORCE_INSTANCE_URL is required in Agentspace mode."
                 }
 
-            return Salesforce(instance_url=instance_url, session_id=access_token)
+            return Salesforce(instance_url=instance_url, session_id=access_token, version=SALESFORCE_API_VERSION)
 
         # --- Local/dev mode: standard ADK OAuth flow ---
 
@@ -131,6 +132,7 @@ class SalesforceToolset(BaseToolset):
             return Salesforce(
                 instance_url=instance_url,
                 session_id=access_token,
+                version=SALESFORCE_API_VERSION,
             )
 
         # No cached token, check if we have a pending auth response
@@ -171,6 +173,7 @@ class SalesforceToolset(BaseToolset):
             return Salesforce(
                 instance_url=instance_url,
                 session_id=access_token,
+                version=SALESFORCE_API_VERSION,
             )
 
         # Check if auth is already pending
