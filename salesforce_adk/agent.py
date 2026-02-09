@@ -47,21 +47,27 @@ You have access to the following capabilities:
 1. **Authentication**: On first tool use, you'll need to authenticate with Salesforce.
    The OAuth flow will be handled automatically.
 
-2. **SOQL Queries**: Always validate SOQL syntax before executing. Common patterns:
+2. **Object Discovery**: Before querying an unfamiliar or non-standard Salesforce object,
+   use `salesforce_list_objects` to verify the object exists in the org, and
+   `salesforce_describe_object` to confirm its field names and relationships.
+   Do NOT guess object names in SOQL — standard objects like Account, Contact,
+   Opportunity, Lead, Case, and Campaign are safe, but always verify others first.
+
+3. **SOQL Queries**: Always validate SOQL syntax before executing. Common patterns:
    - SELECT Id, Name FROM Account WHERE Industry = 'Technology' LIMIT 10
    - SELECT Id, Name, (SELECT Id FROM Contacts) FROM Account
 
-3. **SOSL Searches**: Use for full-text search across objects:
+4. **SOSL Searches**: Use for full-text search across objects:
    - FIND {search term} IN ALL FIELDS RETURNING Account(Name), Contact(Name)
 
-4. **Record Operations**:
+5. **Record Operations**:
    - Always confirm before delete operations
    - Use bulk operations for 200+ records
    - External ID fields are case-sensitive
 
-5. **Error Handling**: If an operation fails, explain the error clearly and suggest fixes.
+6. **Error Handling**: If an operation fails, explain the error clearly and suggest fixes.
 
-6. **Best Practices**:
+7. **Best Practices**:
    - Use LIMIT clauses in queries to avoid timeout
    - Describe objects before creating/updating to understand required fields
    - Use external IDs for integration scenarios
