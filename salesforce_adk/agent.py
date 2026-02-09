@@ -6,10 +6,13 @@ from dotenv import load_dotenv
 from google.adk import Agent
 
 from salesforce_adk.toolset import SalesforceToolset
+from google.adk.models.lite_llm import LiteLlm
 
 load_dotenv()
 
 AGENT_MODEL = os.getenv("AGENT_MODEL", "gemini-2.5-flash")
+VERTEXAI_PROJECT = os.getenv("VERTEXAI_PROJECT", "")
+VERTEXAI_LOCATION = os.getenv("VERTEXAI_LOCATION", "global")
 
 AGENT_INSTRUCTION = """You are a Salesforce specialist agent that helps users interact with their Salesforce org.
 
@@ -66,7 +69,11 @@ You have access to the following capabilities:
 
 root_agent = Agent(
     name="salesforce_agent",
-    model=AGENT_MODEL,
+    model=LiteLlm(
+        model=f"vertex_ai/{AGENT_MODEL}",
+        vertex_project=VERTEXAI_PROJECT,
+        vertex_location=VERTEXAI_LOCATION,
+    ),
     description="Salesforce specialist agent for querying, managing records, and accessing metadata",
     instruction=AGENT_INSTRUCTION,
     tools=[SalesforceToolset()],
