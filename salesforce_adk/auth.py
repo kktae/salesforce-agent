@@ -41,6 +41,7 @@ SALESFORCE_AUTH_CREDENTIAL = AuthCredential(
     oauth2=OAuth2Auth(
         client_id=SALESFORCE_CLIENT_ID,
         client_secret=SALESFORCE_CLIENT_SECRET,
+        token_endpoint_auth_method="client_secret_post",
     ),
 )
 
