@@ -10,7 +10,9 @@ from google.adk.tools.tool_context import ToolContext
 from simple_salesforce.api import Salesforce
 
 from salesforce_adk.auth import (
+    AGENTSPACE_MODE,
     SALESFORCE_AUTH_CONFIG,
+    SALESFORCE_AUTH_ID,
     SALESFORCE_INSTANCE_URL,
     SALESFORCE_LOGIN_URL,
     AUTH_PENDING_KEY,
@@ -19,6 +21,8 @@ from salesforce_adk.auth import (
     INSTANCE_URL_CACHE_KEY,
 )
 from salesforce_adk.operations import SalesforceOperations
+
+logger = logging.getLogger(__name__)
 
 
 class SalesforceToolset(BaseToolset):
@@ -98,6 +102,25 @@ class SalesforceToolset(BaseToolset):
             Authenticated Salesforce client, or None if auth is pending,
             or dict with "error" key if token exchange failed
         """
+        # --- Agentspace mode: platform-injected token ---
+        if AGENTSPACE_MODE:
+            assert SALESFORCE_AUTH_ID is not None
+            access_token = tool_context.state.get(SALESFORCE_AUTH_ID)
+            if not access_token:
+                return {
+                    "error": f"No access token injected by Agentspace. Verify Authorization resource for auth_id='{SALESFORCE_AUTH_ID}'."
+                }
+
+            instance_url = SALESFORCE_INSTANCE_URL
+            if not instance_url:
+                return {
+                    "error": "SALESFORCE_INSTANCE_URL is required in Agentspace mode."
+                }
+
+            return Salesforce(instance_url=instance_url, session_id=access_token)
+
+        # --- Local/dev mode: standard ADK OAuth flow ---
+
         # Check for cached token
         access_token = tool_context.state.get(TOKEN_CACHE_KEY)
         instance_url = tool_context.state.get(
@@ -118,9 +141,9 @@ class SalesforceToolset(BaseToolset):
             access_token = oauth2_response.access_token
             refresh_token = oauth2_response.refresh_token
 
-            logging.info("Obtained OAuth2 response from ADK auth flow.")
-            logging.info(f"Access Token: {access_token}")
-            logging.info(f"Refresh Token: {refresh_token}")
+            logger.debug("Obtained OAuth2 response from ADK auth flow.")
+            logger.debug("Access token present: %s", bool(access_token))
+            logger.debug("Refresh token present: %s", bool(refresh_token))
 
             if not access_token:
                 tool_context.state[AUTH_PENDING_KEY] = False
@@ -131,13 +154,14 @@ class SalesforceToolset(BaseToolset):
             # Get instance_url from OAuth response or use configured default
             response_instance_url = getattr(oauth2_response, "instance_url", None)
             if response_instance_url:
-                logging.info(
-                    f"Using instance_url from OAuth response: {response_instance_url}"
+                logger.debug(
+                    "Using instance_url from OAuth response: %s",
+                    response_instance_url,
                 )
                 instance_url = response_instance_url
             elif not instance_url:
                 instance_url = SALESFORCE_INSTANCE_URL or SALESFORCE_LOGIN_URL
-            logging.info(f"Using instance_url: {instance_url}")
+            logger.debug("Using instance_url: %s", instance_url)
 
             # Cache the tokens
             tool_context.state[TOKEN_CACHE_KEY] = access_token

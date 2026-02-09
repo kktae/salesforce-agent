@@ -18,6 +18,8 @@ SALESFORCE_LOGIN_URL = os.getenv("SALESFORCE_LOGIN_URL", "https://login.salesfor
 SALESFORCE_INSTANCE_URL = os.getenv("SALESFORCE_INSTANCE_URL")
 SALESFORCE_CLIENT_ID = os.getenv("SALESFORCE_CLIENT_ID")
 SALESFORCE_CLIENT_SECRET = os.getenv("SALESFORCE_CLIENT_SECRET")
+SALESFORCE_AUTH_ID = os.getenv("SALESFORCE_AUTH_ID")
+AGENTSPACE_MODE = os.getenv("AGENTSPACE_MODE", "").lower() in ("true", "1", "yes")
 
 # OAuth2 authentication scheme for Salesforce
 SALESFORCE_AUTH_SCHEME = OAuth2(
