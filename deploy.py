@@ -65,6 +65,9 @@ class DeploymentManager:
         logger.info("GOOGLE_CLOUD_PROJECT: %s", self.project)
         logger.info("GOOGLE_CLOUD_LOCATION: %s", self.location)
         logger.info("STAGING_BUCKET: %s", self.staging_bucket)
+        logger.info("VERTEXAI_PROJECT: %s", os.getenv("VERTEXAI_PROJECT"))
+        logger.info("VERTEXAI_LOCATION: %s", os.getenv("VERTEXAI_LOCATION"))
+        logger.info("AGENT_MODEL: %s", os.getenv("AGENT_MODEL"))
 
         vertexai.init(
             project=self.project,
