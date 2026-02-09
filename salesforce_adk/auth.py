@@ -54,7 +54,6 @@ SALESFORCE_AUTH_CONFIG = AuthConfig(
 
 # State keys for tool_context.state
 AUTH_PENDING_KEY = "salesforce_auth_pending"
-TOKEN_CACHE_KEY = "salesforce_access_token"
 INSTANCE_URL_CACHE_KEY = "salesforce_instance_url"
 
 # Standard response for pending authentication

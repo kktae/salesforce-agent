@@ -18,7 +18,6 @@ from salesforce_adk.auth import (
     SALESFORCE_LOGIN_URL,
     AUTH_PENDING_KEY,
     AUTH_PENDING_RESPONSE,
-    TOKEN_CACHE_KEY,
     INSTANCE_URL_CACHE_KEY,
 )
 from salesforce_adk.operations import SalesforceOperations
@@ -88,24 +87,33 @@ class SalesforceToolset(BaseToolset):
         self,
         tool_context: ToolContext,
     ) -> Union[Salesforce, dict, None]:
-        """Get an authenticated Salesforce client using ADK OAuth flow.
+        """Get an authenticated Salesforce client.
 
-        This method:
-        1. Checks for cached access token in tool_context.state
-        2. If no token, requests OAuth authentication from user
-        3. Caches the token and instance_url for future use
-        4. Returns a simple_salesforce.Salesforce client
+        In **Agentspace mode** the platform injects the access token into
+        ``tool_context.state[SALESFORCE_AUTH_ID]`` — no user interaction needed.
+
+        In **local/dev mode** the full token lifecycle (caching, expiration
+        checks, refresh-token exchange) is delegated to ADK's built-in
+        ``CredentialManager`` / ``OAuth2CredentialRefresher``.  This method
+        simply reads the credential via ``get_auth_response()`` on every
+        invocation and creates a ``Salesforce`` client.
+
+        Only ``instance_url`` is cached separately because it is a
+        Salesforce-specific field that ADK does not manage.
 
         Args:
-            tool_context: The ADK ToolContext for managing auth state
+            tool_context: The ADK ToolContext for managing auth state.
 
         Returns:
-            Authenticated Salesforce client, or None if auth is pending,
-            or dict with "error" key if token exchange failed
+            Authenticated Salesforce client, or ``None`` if auth is pending,
+            or dict with ``"error"`` key if token exchange failed.
         """
         # --- Agentspace mode: platform-injected token ---
         if AGENTSPACE_MODE:
-            assert SALESFORCE_AUTH_ID is not None
+            if not SALESFORCE_AUTH_ID:
+                return {
+                    "error": "SALESFORCE_AUTH_ID is required in Agentspace mode. Set it in the environment."
+                }
             access_token = tool_context.state.get(SALESFORCE_AUTH_ID)
             if not access_token:
                 return {
@@ -120,32 +128,24 @@ class SalesforceToolset(BaseToolset):
 
             return Salesforce(instance_url=instance_url, session_id=access_token, version=SALESFORCE_API_VERSION)
 
-        # --- Local/dev mode: standard ADK OAuth flow ---
+        # --- Local/dev mode: ADK-managed OAuth flow ---
+        # ADK's CredentialManager automatically handles:
+        #   - Token caching in session state
+        #   - Expiration checks via OAuth2Token.is_expired()
+        #   - Refresh-token exchange via OAuth2CredentialRefresher
+        #   - Persisting refreshed credentials back to session state
 
-        # Check for cached token
-        access_token = tool_context.state.get(TOKEN_CACHE_KEY)
-        instance_url = tool_context.state.get(
-            INSTANCE_URL_CACHE_KEY, SALESFORCE_INSTANCE_URL
-        )
-
-        if access_token and instance_url:
-            return Salesforce(
-                instance_url=instance_url,
-                session_id=access_token,
-                version=SALESFORCE_API_VERSION,
-            )
-
-        # No cached token, check if we have a pending auth response
         auth_response = tool_context.get_auth_response(SALESFORCE_AUTH_CONFIG)
 
         if auth_response and auth_response.oauth2:
-            oauth2_response = auth_response.oauth2
-            access_token = oauth2_response.access_token
-            refresh_token = oauth2_response.refresh_token
+            oauth2_cred = auth_response.oauth2
+            access_token = oauth2_cred.access_token
 
-            logger.debug("Obtained OAuth2 response from ADK auth flow.")
-            logger.debug("Access token present: %s", bool(access_token))
-            logger.debug("Refresh token present: %s", bool(refresh_token))
+            logger.debug(
+                "OAuth2 credential from ADK: access_token=%s, refresh_token=%s",
+                bool(access_token),
+                bool(oauth2_cred.refresh_token),
+            )
 
             if not access_token:
                 tool_context.state[AUTH_PENDING_KEY] = False
@@ -153,22 +153,17 @@ class SalesforceToolset(BaseToolset):
                     "error": "OAuth token exchange failed. Please check your Salesforce Connected App credentials."
                 }
 
-            # Get instance_url from OAuth response or use configured default
-            response_instance_url = getattr(oauth2_response, "instance_url", None)
-            if response_instance_url:
-                logger.debug(
-                    "Using instance_url from OAuth response: %s",
-                    response_instance_url,
-                )
-                instance_url = response_instance_url
-            elif not instance_url:
-                instance_url = SALESFORCE_INSTANCE_URL or SALESFORCE_LOGIN_URL
-            logger.debug("Using instance_url: %s", instance_url)
-
-            # Cache the tokens
-            tool_context.state[TOKEN_CACHE_KEY] = access_token
+            # Resolve instance_url (Salesforce-specific, not managed by ADK)
+            instance_url = (
+                getattr(oauth2_cred, "instance_url", None)
+                or tool_context.state.get(INSTANCE_URL_CACHE_KEY)
+                or SALESFORCE_INSTANCE_URL
+                or SALESFORCE_LOGIN_URL
+            )
             tool_context.state[INSTANCE_URL_CACHE_KEY] = instance_url
             tool_context.state[AUTH_PENDING_KEY] = False
+
+            logger.debug("Using instance_url: %s", instance_url)
 
             return Salesforce(
                 instance_url=instance_url,
@@ -176,7 +171,7 @@ class SalesforceToolset(BaseToolset):
                 version=SALESFORCE_API_VERSION,
             )
 
-        # Check if auth is already pending
+        # No credential available – check if auth is already pending
         if tool_context.state.get(AUTH_PENDING_KEY):
             return None
 
