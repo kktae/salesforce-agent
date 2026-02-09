@@ -1,17 +1,23 @@
 [project]
 name = "salesforce-adk"
 version = "0.1.0"
-description = "Add your description here"
+description = "Salesforce ADK for Google Agent Engine"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "google-adk>=1.23.0",
+    "google-adk>=1.24.1",
+    "google-cloud-aiplatform[agent_engines,adk]>=1.112.0",
+    "litellm>=1.81.9",
     "python-dotenv>=1.2.1",
     "simple-salesforce>=1.12.9",
+    "typer>=0.21.1",
 ]
+
+[tool.pyright]
+extraPaths = ["."]
 
 [dependency-groups]
 dev = [
     "pyright>=1.1.408",
-    "ruff>=0.14.14",
+    "ruff>=0.15.0",
 ]

@@ -12,6 +12,9 @@ wheels/
 # Environment variables
 .env
 .env.local
+.env.sandbox
+.env.dev
+.env.production
 
 # IDE
 .idea/
