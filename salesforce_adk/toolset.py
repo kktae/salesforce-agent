@@ -55,6 +55,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             List of tool instances for all Salesforce operations
         """
+
         def make_tool(func) -> BaseTool:
             if AGENTSPACE_MODE:
                 return FunctionTool(func=func)
@@ -353,10 +354,12 @@ class SalesforceToolset(BaseToolset):
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
-        status_code = ops.update_record(sobject, record_id, data)
+        result = ops.update_record(sobject, record_id, data)
+        if isinstance(result, dict):
+            return result
         return {
-            "success": status_code == 204,
-            "status_code": status_code,
+            "success": result == 204,
+            "status_code": result,
             "record_id": record_id,
         }
 
@@ -383,10 +386,12 @@ class SalesforceToolset(BaseToolset):
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
-        status_code = ops.delete_record(sobject, record_id)
+        result = ops.delete_record(sobject, record_id)
+        if isinstance(result, dict):
+            return result
         return {
-            "success": status_code == 204,
-            "status_code": status_code,
+            "success": result == 204,
+            "status_code": result,
             "record_id": record_id,
         }
 
