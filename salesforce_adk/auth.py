@@ -53,12 +53,4 @@ SALESFORCE_AUTH_CONFIG = AuthConfig(
 )
 
 # State keys for tool_context.state
-AUTH_PENDING_KEY = "salesforce_auth_pending"
 INSTANCE_URL_CACHE_KEY = "salesforce_instance_url"
-
-# Standard response for pending authentication
-AUTH_PENDING_RESPONSE = {
-    "status": "pending_auth",
-    "message": "Please complete Salesforce OAuth login in the browser popup.",
-    "action_required": "user_authentication",
-}

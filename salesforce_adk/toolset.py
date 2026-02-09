@@ -3,6 +3,8 @@
 import logging
 from typing import Any, Union, cast
 
+from google.adk.auth.auth_credential import AuthCredential
+from google.adk.tools.authenticated_function_tool import AuthenticatedFunctionTool
 from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.base_toolset import BaseToolset, ToolPredicate
 from google.adk.tools.function_tool import FunctionTool
@@ -16,8 +18,6 @@ from salesforce_adk.auth import (
     SALESFORCE_AUTH_ID,
     SALESFORCE_INSTANCE_URL,
     SALESFORCE_LOGIN_URL,
-    AUTH_PENDING_KEY,
-    AUTH_PENDING_RESPONSE,
     INSTANCE_URL_CACHE_KEY,
 )
 from salesforce_adk.operations import SalesforceOperations
@@ -53,29 +53,37 @@ class SalesforceToolset(BaseToolset):
             readonly_context: Optional context (unused)
 
         Returns:
-            List of FunctionTool instances for all Salesforce operations
+            List of tool instances for all Salesforce operations
         """
+        def make_tool(func) -> BaseTool:
+            if AGENTSPACE_MODE:
+                return FunctionTool(func=func)
+            return AuthenticatedFunctionTool(
+                func=func,
+                auth_config=SALESFORCE_AUTH_CONFIG,
+            )
+
         tools = [
             # Query tools
-            FunctionTool(func=self.salesforce_query),
-            FunctionTool(func=self.salesforce_query_all),
-            FunctionTool(func=self.salesforce_query_more),
-            FunctionTool(func=self.salesforce_search),
+            make_tool(self.salesforce_query),
+            make_tool(self.salesforce_query_all),
+            make_tool(self.salesforce_query_more),
+            make_tool(self.salesforce_search),
             # Record CRUD tools
-            FunctionTool(func=self.salesforce_get_record),
-            FunctionTool(func=self.salesforce_create_record),
-            FunctionTool(func=self.salesforce_update_record),
-            FunctionTool(func=self.salesforce_delete_record),
-            FunctionTool(func=self.salesforce_upsert_record),
+            make_tool(self.salesforce_get_record),
+            make_tool(self.salesforce_create_record),
+            make_tool(self.salesforce_update_record),
+            make_tool(self.salesforce_delete_record),
+            make_tool(self.salesforce_upsert_record),
             # Metadata tools
-            FunctionTool(func=self.salesforce_describe_object),
-            FunctionTool(func=self.salesforce_list_objects),
-            FunctionTool(func=self.salesforce_get_object_fields),
+            make_tool(self.salesforce_describe_object),
+            make_tool(self.salesforce_list_objects),
+            make_tool(self.salesforce_get_object_fields),
             # Bulk API tools
-            FunctionTool(func=self.salesforce_bulk_query),
-            FunctionTool(func=self.salesforce_bulk_insert),
-            FunctionTool(func=self.salesforce_bulk_update),
-            FunctionTool(func=self.salesforce_bulk_delete),
+            make_tool(self.salesforce_bulk_query),
+            make_tool(self.salesforce_bulk_insert),
+            make_tool(self.salesforce_bulk_update),
+            make_tool(self.salesforce_bulk_delete),
         ]
 
         if self._tool_filter:
@@ -86,27 +94,27 @@ class SalesforceToolset(BaseToolset):
     async def _get_client(
         self,
         tool_context: ToolContext,
-    ) -> Union[Salesforce, dict, None]:
+        credential: AuthCredential | None = None,
+    ) -> Union[Salesforce, dict]:
         """Get an authenticated Salesforce client.
 
         In **Agentspace mode** the platform injects the access token into
         ``tool_context.state[SALESFORCE_AUTH_ID]`` — no user interaction needed.
 
-        In **local/dev mode** the full token lifecycle (caching, expiration
-        checks, refresh-token exchange) is delegated to ADK's built-in
-        ``CredentialManager`` / ``OAuth2CredentialRefresher``.  This method
-        simply reads the credential via ``get_auth_response()`` on every
-        invocation and creates a ``Salesforce`` client.
+        In **local/dev mode** the credential is injected by
+        ``AuthenticatedFunctionTool``, which handles the entire OAuth flow
+        (including cross-turn persistence via ``CredentialService`` and
+        automatic token refresh) before the tool function is called.
 
         Only ``instance_url`` is cached separately because it is a
         Salesforce-specific field that ADK does not manage.
 
         Args:
             tool_context: The ADK ToolContext for managing auth state.
+            credential: OAuth2 credential injected by AuthenticatedFunctionTool.
 
         Returns:
-            Authenticated Salesforce client, or ``None`` if auth is pending,
-            or dict with ``"error"`` key if token exchange failed.
+            Authenticated Salesforce client, or dict with ``"error"`` key on failure.
         """
         # --- Agentspace mode: platform-injected token ---
         if AGENTSPACE_MODE:
@@ -126,71 +134,43 @@ class SalesforceToolset(BaseToolset):
                     "error": "SALESFORCE_INSTANCE_URL is required in Agentspace mode."
                 }
 
-            return Salesforce(instance_url=instance_url, session_id=access_token, version=SALESFORCE_API_VERSION)
-
-        # --- Local/dev mode: ADK-managed OAuth flow ---
-        # ADK's CredentialManager automatically handles:
-        #   - Token caching in session state
-        #   - Expiration checks via OAuth2Token.is_expired()
-        #   - Refresh-token exchange via OAuth2CredentialRefresher
-        #   - Persisting refreshed credentials back to session state
-
-        auth_response = tool_context.get_auth_response(SALESFORCE_AUTH_CONFIG)
-
-        if auth_response and auth_response.oauth2:
-            oauth2_cred = auth_response.oauth2
-            access_token = oauth2_cred.access_token
-
-            logger.debug(
-                "OAuth2 credential from ADK: access_token=%s, refresh_token=%s",
-                bool(access_token),
-                bool(oauth2_cred.refresh_token),
-            )
-
-            if not access_token:
-                tool_context.state[AUTH_PENDING_KEY] = False
-                return {
-                    "error": "OAuth token exchange failed. Please check your Salesforce Connected App credentials."
-                }
-
-            # Resolve instance_url (Salesforce-specific, not managed by ADK)
-            instance_url = (
-                getattr(oauth2_cred, "instance_url", None)
-                or tool_context.state.get(INSTANCE_URL_CACHE_KEY)
-                or SALESFORCE_INSTANCE_URL
-                or SALESFORCE_LOGIN_URL
-            )
-            tool_context.state[INSTANCE_URL_CACHE_KEY] = instance_url
-            tool_context.state[AUTH_PENDING_KEY] = False
-
-            logger.debug("Using instance_url: %s", instance_url)
-
             return Salesforce(
                 instance_url=instance_url,
                 session_id=access_token,
                 version=SALESFORCE_API_VERSION,
             )
 
-        # No credential available – check if auth is already pending
-        if tool_context.state.get(AUTH_PENDING_KEY):
-            return None
+        # --- Local/dev mode: credential injected by AuthenticatedFunctionTool ---
+        if not credential or not credential.oauth2:
+            return {
+                "error": "No OAuth2 credential available. Please authenticate first."
+            }
 
-        # Request authentication
-        tool_context.state[AUTH_PENDING_KEY] = True
-        tool_context.request_credential(SALESFORCE_AUTH_CONFIG)
-        return None
+        access_token = credential.oauth2.access_token
 
-    def _check_auth(self, client: Union[Salesforce, dict, None]) -> dict | None:
+        instance_url = (
+            getattr(credential.oauth2, "instance_url", None)
+            or tool_context.state.get(INSTANCE_URL_CACHE_KEY)
+            or SALESFORCE_INSTANCE_URL
+            or SALESFORCE_LOGIN_URL
+        )
+        tool_context.state[INSTANCE_URL_CACHE_KEY] = instance_url
+
+        return Salesforce(
+            instance_url=instance_url,
+            session_id=access_token,
+            version=SALESFORCE_API_VERSION,
+        )
+
+    def _check_auth(self, client: Union[Salesforce, dict]) -> dict | None:
         """Check if client is valid, return error response if not.
 
         Args:
             client: Result from _get_client
 
         Returns:
-            Error/pending dict if client is invalid, None if valid
+            Error dict if client is invalid, None if valid
         """
-        if client is None:
-            return AUTH_PENDING_RESPONSE
         if isinstance(client, dict):
             return client
         return None
@@ -203,6 +183,7 @@ class SalesforceToolset(BaseToolset):
         include_deleted: bool = False,
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
         """
         Execute a SOQL query against Salesforce.
@@ -215,7 +196,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             Query results containing totalSize, done, records, and nextRecordsUrl
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -226,6 +207,7 @@ class SalesforceToolset(BaseToolset):
         soql: str,
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
         """
         Execute a SOQL query including deleted and archived records.
@@ -237,7 +219,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             Query results including deleted/archived records
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -248,6 +230,7 @@ class SalesforceToolset(BaseToolset):
         next_records_url: str,
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
         """
         Fetch additional records from a paginated query result.
@@ -259,7 +242,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             Additional query results with records and possibly another nextRecordsUrl
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -270,6 +253,7 @@ class SalesforceToolset(BaseToolset):
         sosl: str,
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
         """
         Execute a SOSL (Salesforce Object Search Language) search.
@@ -281,7 +265,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             Search results grouped by object type
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -296,6 +280,7 @@ class SalesforceToolset(BaseToolset):
         fields: str = "",
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
         """
         Get a Salesforce record by its ID.
@@ -309,7 +294,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             Record data with requested fields and attributes
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -324,6 +309,7 @@ class SalesforceToolset(BaseToolset):
         data: dict[str, Any],
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
         """
         Create a new Salesforce record.
@@ -336,7 +322,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             Result containing id, success, and errors
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -349,6 +335,7 @@ class SalesforceToolset(BaseToolset):
         data: dict[str, Any],
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing Salesforce record.
@@ -362,7 +349,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             Result with success status and status_code
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -379,6 +366,7 @@ class SalesforceToolset(BaseToolset):
         record_id: str,
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
         """
         Delete a Salesforce record.
@@ -391,7 +379,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             Result with success status and status_code
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -409,6 +397,7 @@ class SalesforceToolset(BaseToolset):
         data: dict[str, Any],
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
         """
         Upsert a record using an external ID field.
@@ -422,7 +411,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             Result containing id, success, and created flag
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -435,6 +424,7 @@ class SalesforceToolset(BaseToolset):
         sobject: str,
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
         """
         Get complete metadata for a Salesforce SObject.
@@ -446,7 +436,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             Complete object metadata including name, label, fields, recordTypeInfos, etc.
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -456,6 +446,7 @@ class SalesforceToolset(BaseToolset):
         self,
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any] | None:
         """
         List all available SObjects in the Salesforce org.
@@ -466,7 +457,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             Dictionary containing sobjects list with name, label, keyPrefix, etc.
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -477,6 +468,7 @@ class SalesforceToolset(BaseToolset):
         sobject: str,
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Get field information for a Salesforce SObject.
@@ -488,7 +480,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             List of field metadata dictionaries with name, label, type, etc.
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -502,6 +494,7 @@ class SalesforceToolset(BaseToolset):
         soql: str,
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Execute a bulk query for large datasets.
@@ -514,7 +507,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             List of all matching records
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -526,6 +519,7 @@ class SalesforceToolset(BaseToolset):
         records: list[dict[str, Any]],
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Bulk insert multiple records at once.
@@ -538,7 +532,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             List of results for each record with success, id, and errors
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -550,6 +544,7 @@ class SalesforceToolset(BaseToolset):
         records: list[dict[str, Any]],
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Bulk update multiple records at once.
@@ -562,7 +557,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             List of results for each record with success, id, and errors
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
@@ -574,6 +569,7 @@ class SalesforceToolset(BaseToolset):
         record_ids: list[str],
         *,
         tool_context: ToolContext,
+        credential: AuthCredential | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Bulk delete multiple records at once.
@@ -586,7 +582,7 @@ class SalesforceToolset(BaseToolset):
         Returns:
             List of results for each record with success, id, and errors
         """
-        client = await self._get_client(tool_context)
+        client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
