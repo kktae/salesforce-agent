@@ -29,6 +29,7 @@ wheels/
 .pytest_cache/
 .coverage
 htmlcov/
+.playwright-mcp/
 
 # Type checking & Linting
 .mypy_cache/
@@ -41,3 +42,5 @@ htmlcov/
 
 # ADK
 .adk
+
+docs/
