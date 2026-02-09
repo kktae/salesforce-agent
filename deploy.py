@@ -198,9 +198,24 @@ class DeploymentManager:
             raise ValueError(
                 "resource_name is required. Pass it directly or set AGENT_RESOURCE_NAME in .env"
             )
+        display_name = display_name or os.getenv(
+            "AGENT_DISPLAY_NAME", "Salesforce ADK Agent"
+        )
+        description = description or os.getenv(
+            "AGENT_DESCRIPTION",
+            "Salesforce specialist agent for querying, managing records, and accessing metadata",
+        )
         if gcs_dir_name is None:
             gcs_dir_name = os.getenv("GCS_DIR_NAME")
         resolved_labels = self._get_labels(labels)
+        if min_instances is None:
+            raw = os.getenv("AGENT_MIN_INSTANCES")
+            if raw is not None:
+                min_instances = int(raw)
+        if max_instances is None:
+            raw = os.getenv("AGENT_MAX_INSTANCES")
+            if raw is not None:
+                max_instances = int(raw)
 
         app = self._build_adk_app()
         config: dict = {
@@ -208,13 +223,11 @@ class DeploymentManager:
             "gcs_dir_name": gcs_dir_name,
             "requirements": self._get_requirements(),
             "extra_packages": ["./salesforce_adk"],
+            "display_name": display_name,
+            "description": description,
             "labels": resolved_labels,
             "env_vars": self._get_deploy_env_vars(),
         }
-        if display_name is not None:
-            config["display_name"] = display_name
-        if description is not None:
-            config["description"] = description
         if min_instances is not None:
             config["min_instances"] = min_instances
         if max_instances is not None:
