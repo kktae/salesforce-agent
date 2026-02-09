@@ -1,7 +1,6 @@
 """Salesforce Toolset implementing BaseToolset pattern for ADK."""
 
 import logging
-from math import log
 from typing import Any, Union, cast
 
 from google.adk.tools.base_tool import BaseTool
@@ -132,7 +131,9 @@ class SalesforceToolset(BaseToolset):
             # Get instance_url from OAuth response or use configured default
             response_instance_url = getattr(oauth2_response, "instance_url", None)
             if response_instance_url:
-                logging.info(f"Using instance_url from OAuth response: {response_instance_url}")
+                logging.info(
+                    f"Using instance_url from OAuth response: {response_instance_url}"
+                )
                 instance_url = response_instance_url
             elif not instance_url:
                 instance_url = SALESFORCE_INSTANCE_URL or SALESFORCE_LOGIN_URL
