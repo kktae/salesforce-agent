@@ -532,11 +532,29 @@ class SalesforceToolset(BaseToolset):
             User identity with user_id, organization_id, name, email,
             username, zoneinfo, locale, and user_type
         """
+        from salesforce_adk.auth import USER_IDENTITY_CACHE_KEY
+
+        # 캐시 확인
+        cached = tool_context.state.get(USER_IDENTITY_CACHE_KEY)
+        if cached and isinstance(cached, dict):
+            return cached
+
         client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
-        return ops.get_user_identity()
+        identity = ops.get_user_identity()
+
+        # 성공 시 캐시 저장
+        if isinstance(identity, dict) and "error" not in identity:
+            tool_context.state[USER_IDENTITY_CACHE_KEY] = identity
+            tool_context.state["_user_context"] = (
+                f"{identity.get('name')} "
+                f"(username: {identity.get('preferred_username')}, "
+                f"user_id: {identity.get('user_id')})"
+            )
+
+        return identity
 
     # ==================== Report Tools ====================
 
