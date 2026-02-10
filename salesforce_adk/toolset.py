@@ -58,7 +58,9 @@ class SalesforceToolset(BaseToolset):
 
         def make_tool(func) -> BaseTool:
             if AGENTSPACE_MODE:
-                return FunctionTool(func=func)
+                tool = FunctionTool(func=func)
+                tool._ignore_params.append("credential")
+                return tool
             return AuthenticatedFunctionTool(
                 func=func,
                 auth_config=SALESFORCE_AUTH_CONFIG,
