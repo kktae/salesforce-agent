@@ -86,6 +86,12 @@ class SalesforceToolset(BaseToolset):
             make_tool(self.salesforce_get_currency_config),
             # Identity tools
             make_tool(self.salesforce_get_user_identity),
+            # Report tools
+            make_tool(self.salesforce_list_reports),
+            make_tool(self.salesforce_run_report),
+            make_tool(self.salesforce_describe_report),
+            make_tool(self.salesforce_run_report_async),
+            make_tool(self.salesforce_get_report_instance),
             # Bulk API tools
             make_tool(self.salesforce_bulk_query),
             make_tool(self.salesforce_bulk_insert),
@@ -553,6 +559,148 @@ class SalesforceToolset(BaseToolset):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
         return ops.get_user_identity()
+
+    # ==================== Report Tools ====================
+
+    async def salesforce_list_reports(
+        self,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> list[dict[str, Any]] | dict[str, Any]:
+        """
+        List recently viewed Salesforce reports (up to 200).
+
+        Args:
+            tool_context: ADK tool context for authentication
+
+        Returns:
+            List of report summaries with id, name, url, etc.
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.list_reports()
+
+    async def salesforce_run_report(
+        self,
+        report_id: str,
+        filters: list[dict[str, Any]] | None = None,
+        include_details: bool = True,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """
+        Execute a Salesforce report synchronously.
+
+        Runs the report and returns results immediately. Supports dynamic
+        filters to narrow results without modifying the saved report definition.
+        Note: API returns a maximum of 2,000 detail rows.
+
+        Args:
+            report_id: The 15 or 18-character Salesforce report ID
+            filters: Optional list of dynamic filters. Each filter is a dict with
+                     "column" (API name), "operator" (e.g. "equals", "greaterThan"),
+                     and "value" (filter value).
+            include_details: If True (default), include individual detail rows
+            tool_context: ADK tool context for authentication
+
+        Returns:
+            Report result with reportMetadata, factMap, groupingsDown, groupingsAcross
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.run_report(report_id, filters=filters, include_details=include_details)
+
+    async def salesforce_describe_report(
+        self,
+        report_id: str,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """
+        Get metadata for a Salesforce report.
+
+        Returns the report's structure including columns, filters, groupings,
+        and report type information. Useful for understanding a report before
+        running it or applying dynamic filters.
+
+        Args:
+            report_id: The 15 or 18-character Salesforce report ID
+            tool_context: ADK tool context for authentication
+
+        Returns:
+            Report metadata with reportMetadata, reportTypeMetadata, reportExtendedMetadata
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.describe_report(report_id)
+
+    async def salesforce_run_report_async(
+        self,
+        report_id: str,
+        filters: list[dict[str, Any]] | None = None,
+        include_details: bool = True,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """
+        Request an asynchronous execution of a Salesforce report.
+
+        Use this for large reports that may exceed the synchronous timeout (2 min).
+        Returns an instance ID that can be used with salesforce_get_report_instance
+        to poll for results. Async results are retained for 24 hours.
+
+        Args:
+            report_id: The 15 or 18-character Salesforce report ID
+            filters: Optional list of dynamic filters (same format as salesforce_run_report)
+            include_details: If True (default), include individual detail rows
+            tool_context: ADK tool context for authentication
+
+        Returns:
+            Instance info containing "id" (instance ID), "status", and "requestDate"
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.run_report_async(report_id, filters=filters, include_details=include_details)
+
+    async def salesforce_get_report_instance(
+        self,
+        report_id: str,
+        instance_id: str,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """
+        Get the result of an asynchronous report execution.
+
+        Retrieves results for a previously submitted async report run.
+        If the report is still running, the status field will indicate progress.
+
+        Args:
+            report_id: The 15 or 18-character Salesforce report ID
+            instance_id: The instance ID returned by salesforce_run_report_async
+            tool_context: ADK tool context for authentication
+
+        Returns:
+            Report result (same structure as salesforce_run_report) or status if still running
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.get_report_instance(report_id, instance_id)
 
     # ==================== Bulk API Tools ====================
 

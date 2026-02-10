@@ -326,6 +326,120 @@ class SalesforceOperations:
 
         return result
 
+    # ==================== Report Operations ====================
+
+    @_handle_salesforce_errors
+    def list_reports(self) -> list[dict[str, Any]]:
+        """
+        List recently viewed reports (up to 200).
+
+        Returns:
+            List of report summary dicts with id, name, url, etc.
+        """
+        result = self.client.restful("analytics/reports", method="GET")
+        return result if result is not None else []
+
+    @_handle_salesforce_errors
+    def run_report(
+        self,
+        report_id: str,
+        filters: Optional[list[dict[str, Any]]] = None,
+        include_details: bool = True,
+    ) -> dict[str, Any]:
+        """
+        Execute a report synchronously.
+
+        Args:
+            report_id: The 15/18-character report ID
+            filters: Optional list of dynamic filters to apply.
+                     Each filter dict should have column, operator, value keys.
+            include_details: If True, include detail rows in results
+
+        Returns:
+            Report execution result with reportMetadata, factMap, etc.
+        """
+        params = {"includeDetails": "true" if include_details else "false"}
+        if filters:
+            result = self.client.restful(
+                f"analytics/reports/{report_id}",
+                method="POST",
+                params=params,
+                json={"reportMetadata": {"reportFilters": filters}},
+            )
+        else:
+            result = self.client.restful(
+                f"analytics/reports/{report_id}",
+                method="GET",
+                params=params,
+            )
+        return result if result is not None else {}
+
+    @_handle_salesforce_errors
+    def describe_report(self, report_id: str) -> dict[str, Any]:
+        """
+        Get report metadata (columns, filters, groupings, report type, etc.).
+
+        Args:
+            report_id: The 15/18-character report ID
+
+        Returns:
+            Report metadata dict with reportMetadata, reportTypeMetadata, etc.
+        """
+        result = self.client.restful(
+            f"analytics/reports/{report_id}/describe", method="GET"
+        )
+        return result if result is not None else {}
+
+    @_handle_salesforce_errors
+    def run_report_async(
+        self,
+        report_id: str,
+        filters: Optional[list[dict[str, Any]]] = None,
+        include_details: bool = True,
+    ) -> dict[str, Any]:
+        """
+        Request an asynchronous report execution.
+
+        Args:
+            report_id: The 15/18-character report ID
+            filters: Optional list of dynamic filters to apply
+            include_details: If True, include detail rows in results
+
+        Returns:
+            Instance info dict containing the instance id for polling
+        """
+        params = {"includeDetails": "true" if include_details else "false"}
+        json_body: dict[str, Any] | None = None
+        if filters:
+            json_body = {"reportMetadata": {"reportFilters": filters}}
+        result = self.client.restful(
+            f"analytics/reports/{report_id}/instances",
+            method="POST",
+            params=params,
+            json=json_body,
+        )
+        return result if result is not None else {}
+
+    @_handle_salesforce_errors
+    def get_report_instance(
+        self, report_id: str, instance_id: str
+    ) -> dict[str, Any]:
+        """
+        Get the result of an asynchronous report execution.
+
+        Args:
+            report_id: The 15/18-character report ID
+            instance_id: The instance ID returned by run_report_async
+
+        Returns:
+            Report execution result (same structure as run_report)
+        """
+        result = self.client.restful(
+            f"analytics/reports/{report_id}/instances/{instance_id}",
+            method="GET",
+        )
+        return result if result is not None else {}
+
     # ==================== Identity Operations ====================
 
     @_handle_salesforce_errors
