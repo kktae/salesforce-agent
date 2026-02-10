@@ -313,12 +313,14 @@ class SalesforceOperations:
             result["advanced_currency_management"] = True
             dated_rates = []
             for record in dated_response.get("records", []):
-                dated_rates.append({
-                    "iso_code": record["IsoCode"],
-                    "conversion_rate": record["ConversionRate"],
-                    "start_date": record["StartDate"],
-                    "next_start_date": record["NextStartDate"],
-                })
+                dated_rates.append(
+                    {
+                        "iso_code": record["IsoCode"],
+                        "conversion_rate": record["ConversionRate"],
+                        "start_date": record["StartDate"],
+                        "next_start_date": record["NextStartDate"],
+                    }
+                )
             result["dated_rates"] = dated_rates
         except Exception:
             logger.info(
@@ -422,9 +424,7 @@ class SalesforceOperations:
         return result if result is not None else {}
 
     @_handle_salesforce_errors
-    def get_report_instance(
-        self, report_id: str, instance_id: str
-    ) -> dict[str, Any]:
+    def get_report_instance(self, report_id: str, instance_id: str) -> dict[str, Any]:
         """
         Get the result of an asynchronous report execution.
 
@@ -462,9 +462,7 @@ class SalesforceOperations:
             Dict with base64-encoded content, content_type, and file metadata
         """
         sobject_type = getattr(self.client, sobject)
-        raw_bytes = sobject_type.get_base64(
-            record_id, base64_field=blob_field
-        )
+        raw_bytes = sobject_type.get_base64(record_id, base64_field=blob_field)
 
         # Fetch metadata for the file
         metadata: dict[str, Any] = {}
@@ -518,13 +516,15 @@ class SalesforceOperations:
         files = []
         for record in result.get("records", []):
             doc = record.get("ContentDocument") or {}
-            files.append({
-                "content_document_id": record.get("ContentDocumentId"),
-                "title": doc.get("Title"),
-                "file_extension": doc.get("FileExtension"),
-                "content_size": doc.get("ContentSize"),
-                "latest_version_id": doc.get("LatestPublishedVersionId"),
-            })
+            files.append(
+                {
+                    "content_document_id": record.get("ContentDocumentId"),
+                    "title": doc.get("Title"),
+                    "file_extension": doc.get("FileExtension"),
+                    "content_size": doc.get("ContentSize"),
+                    "latest_version_id": doc.get("LatestPublishedVersionId"),
+                }
+            )
         return {
             "record_id": record_id,
             "total_files": len(files),
@@ -561,22 +561,26 @@ class SalesforceOperations:
             for step in steps_data.get("records", []):
                 actor = step.get("Actor") or {}
                 original_actor = step.get("OriginalActor") or {}
-                steps.append({
-                    "id": step.get("Id"),
-                    "step_status": step.get("StepStatus"),
-                    "comments": step.get("Comments"),
-                    "actor_name": actor.get("Name"),
-                    "original_actor_name": original_actor.get("Name"),
-                    "created_date": step.get("CreatedDate"),
-                })
-            instances.append({
-                "id": record.get("Id"),
-                "status": record.get("Status"),
-                "created_date": record.get("CreatedDate"),
-                "completed_date": record.get("CompletedDate"),
-                "last_actor_name": last_actor.get("Name"),
-                "steps": steps,
-            })
+                steps.append(
+                    {
+                        "id": step.get("Id"),
+                        "step_status": step.get("StepStatus"),
+                        "comments": step.get("Comments"),
+                        "actor_name": actor.get("Name"),
+                        "original_actor_name": original_actor.get("Name"),
+                        "created_date": step.get("CreatedDate"),
+                    }
+                )
+            instances.append(
+                {
+                    "id": record.get("Id"),
+                    "status": record.get("Status"),
+                    "created_date": record.get("CreatedDate"),
+                    "completed_date": record.get("CompletedDate"),
+                    "last_actor_name": last_actor.get("Name"),
+                    "steps": steps,
+                }
+            )
         return {
             "record_id": record_id,
             "total_instances": len(instances),
