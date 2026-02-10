@@ -5,10 +5,7 @@ import logging
 import os
 
 import vertexai
-from dotenv import load_dotenv
 from vertexai.agent_engines import AdkApp
-
-load_dotenv(override=True)
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),

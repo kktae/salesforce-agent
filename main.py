@@ -1,10 +1,28 @@
 """Salesforce ADK Agent Engine Deployment CLI."""
 
+from pathlib import Path
 from typing import Annotated
 
 import typer
+from dotenv import load_dotenv
 
 app = typer.Typer(help="Salesforce ADK Agent Engine Deployment Manager")
+
+
+@app.callback()
+def main(
+    env_file: Annotated[
+        Path | None, typer.Option("--env-file", help="Path to .env file to load")
+    ] = None,
+):
+    """Salesforce ADK Agent Engine Deployment Manager."""
+    if env_file:
+        if not env_file.exists():
+            typer.echo(f"Error: Environment file '{env_file}' not found.", err=True)
+            raise typer.Exit(1)
+        load_dotenv(env_file, override=True)
+    else:
+        load_dotenv(override=True)
 
 
 def _parse_labels(raw: list[str] | None) -> dict[str, str] | None:
