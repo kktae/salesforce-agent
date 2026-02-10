@@ -84,6 +84,8 @@ class SalesforceToolset(BaseToolset):
             make_tool(self.salesforce_get_object_fields),
             # Currency tools
             make_tool(self.salesforce_get_currency_config),
+            # Identity tools
+            make_tool(self.salesforce_get_user_identity),
             # Bulk API tools
             make_tool(self.salesforce_bulk_query),
             make_tool(self.salesforce_bulk_insert),
@@ -522,6 +524,35 @@ class SalesforceToolset(BaseToolset):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
         return ops.get_currency_config()
+
+    # ==================== Identity Tools ====================
+
+    async def salesforce_get_user_identity(
+        self,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """
+        Get the current authenticated user's identity information.
+
+        Returns the profile of the user whose credentials are being used,
+        including user_id, organization_id, name, email, username,
+        timezone, locale, and user_type.
+
+        Args:
+            tool_context: ADK tool context for authentication
+
+        Returns:
+            User identity information including user_id, organization_id,
+            name, email, username, preferred_username, zoneinfo, locale,
+            user_type, language, and photos
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.get_user_identity()
 
     # ==================== Bulk API Tools ====================
 

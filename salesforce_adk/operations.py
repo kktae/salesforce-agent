@@ -326,6 +326,26 @@ class SalesforceOperations:
 
         return result
 
+    # ==================== Identity Operations ====================
+
+    @_handle_salesforce_errors
+    def get_user_identity(self) -> dict[str, Any]:
+        """
+        Get the current authenticated user's identity information.
+
+        Calls the Salesforce OpenID Connect UserInfo endpoint
+        (/services/oauth2/userinfo) to retrieve profile information
+        for the user associated with the current access token.
+
+        Returns:
+            User identity dict containing user_id, organization_id,
+            name, email, preferred_username, zoneinfo, locale, user_type, etc.
+        """
+        result = self.client.oauth2("userinfo")
+        if result is None:
+            return {"error": "UserInfo endpoint returned no data."}
+        return result
+
     # ==================== Bulk API Operations ====================
 
     @_handle_salesforce_errors
