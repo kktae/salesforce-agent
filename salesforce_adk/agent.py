@@ -140,7 +140,7 @@ You have access to the following capabilities:
     - Overdue 영업기회: WHERE CloseDate < TODAY AND IsClosed = false
     - 미접촉 영업기회 (7일): WHERE LastModifiedDate < LAST_N_DAYS:7 AND IsClosed = false
     - Pipeline 요약: SELECT StageName, COUNT(Id), SUM(Amount) FROM Opportunity WHERE IsClosed = false GROUP BY StageName
-    - 사용자 본인 기회만: OwnerId = '{user_id}' (get_user_identity로 확인)
+    - 사용자 본인 기회만: OwnerId = <salesforce_get_user_identity의 user_id> 조건 추가
     - Timeline 확인 시 CloseDate, NextStep, LastActivityDate 포함 권장
     - Task 생성으로 리마인더 설정: salesforce_create_record('Task', {Subject, ActivityDate, WhatId, OwnerId})
 
@@ -153,8 +153,8 @@ You have access to the following capabilities:
 13. **Pricing & Quote Calculation**:
     - 가격표 조회: SELECT Id, Name, UnitPrice, Product2.Name FROM PricebookEntry WHERE Pricebook2.IsStandard = true
     - 기존 계약 단가 확인: Quote, QuoteLineItem, OpportunityLineItem 조회
-    - 일할 계산(pro-rata): (단가 / 365) × 잔여일수, 또는 (단가 / 12) × 잔여월수
-    - 추가 수량 견적: 기존 단가 × 추가 수량 × (잔여 계약기간 / 전체 계약기간)
+    - 일할 계산(pro-rata): (단가 / 365) * 잔여일수, 또는 (단가 / 12) * 잔여월수
+    - 추가 수량 견적: 기존 단가 * 추가 수량 * (잔여 계약기간 / 전체 계약기간)
     - 계산 결과를 명확히 표시: 단가, 수량, 기간, 최종 금액을 테이블로 정리
 """
 
