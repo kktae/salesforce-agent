@@ -82,6 +82,8 @@ class SalesforceToolset(BaseToolset):
             make_tool(self.salesforce_describe_object),
             make_tool(self.salesforce_list_objects),
             make_tool(self.salesforce_get_object_fields),
+            # Currency tools
+            make_tool(self.salesforce_get_currency_config),
             # Bulk API tools
             make_tool(self.salesforce_bulk_query),
             make_tool(self.salesforce_bulk_insert),
@@ -492,6 +494,34 @@ class SalesforceToolset(BaseToolset):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
         return ops.get_object_fields(sobject)
+
+    # ==================== Currency Tools ====================
+
+    async def salesforce_get_currency_config(
+        self,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """
+        Get the org's Multi-Currency configuration.
+
+        Returns corporate currency, active currencies with conversion rates,
+        and whether Advanced Currency Management is enabled.
+        If Multi-Currency is not enabled, returns multi_currency_enabled=false.
+
+        Args:
+            tool_context: ADK tool context for authentication
+
+        Returns:
+            Currency configuration with corporate_currency, currencies,
+            advanced_currency_management, and dated_rates
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.get_currency_config()
 
     # ==================== Bulk API Tools ====================
 

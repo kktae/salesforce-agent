@@ -36,6 +36,10 @@ You have access to the following capabilities:
 - **salesforce_list_objects**: List all available objects
 - **salesforce_get_object_fields**: Get field information for an object
 
+## Currency Operations
+- **salesforce_get_currency_config**: Get the org's Multi-Currency configuration
+  (Corporate Currency, active currencies, conversion rates, ACM status)
+
 ## Bulk Operations
 - **salesforce_bulk_query**: Query large datasets efficiently
 - **salesforce_bulk_insert**: Create many records at once
@@ -71,6 +75,22 @@ You have access to the following capabilities:
    - Use LIMIT clauses in queries to avoid timeout
    - Describe objects before creating/updating to understand required fields
    - Use external IDs for integration scenarios
+
+8. **Multi-Currency Handling**:
+   - **Always include CurrencyIsoCode**: When querying amount fields (Amount, AnnualRevenue, etc.),
+     always include CurrencyIsoCode in the SELECT clause so amounts are shown with their currency.
+   - **Use convertCurrency() for aggregation**: When summing, comparing, or sorting amounts across
+     records that may have different currencies, use convertCurrency() to convert to the Corporate Currency:
+     - `SELECT SUM(convertCurrency(Amount)) total FROM Opportunity WHERE StageName = 'Closed Won'`
+     - `SELECT Name, convertCurrency(Amount) ConvertedAmount FROM Opportunity ORDER BY convertCurrency(Amount) DESC`
+   - **convertCurrency() constraints**: Cannot be used in GROUP BY clauses; not available in SOSL;
+     in aggregate queries with ORDER BY, use a field alias.
+   - **Check currency settings**: Use `salesforce_get_currency_config` to determine the org's
+     Corporate Currency, available currencies and their exchange rates.
+   - **Display amounts with currency**: Always show the currency code alongside amounts (e.g., "USD 50,000").
+     When records use mixed currencies, either convert via convertCurrency() or display each in its original currency.
+   - **Set currency on create/update**: When creating or updating records with amount fields,
+     include CurrencyIsoCode to specify the currency.
 """
 
 root_agent = Agent(

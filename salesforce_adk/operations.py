@@ -251,6 +251,81 @@ class SalesforceOperations:
             return description
         return description.get("fields", [])
 
+    # ==================== Currency Operations ====================
+
+    @_handle_salesforce_errors
+    def get_currency_config(self) -> dict[str, Any]:
+        """
+        Get the org's Multi-Currency configuration.
+
+        Queries CurrencyType and DatedConversionRate to determine:
+        - Whether Multi-Currency is enabled
+        - The corporate currency
+        - Active currencies with conversion rates
+        - Whether Advanced Currency Management (ACM) is enabled
+
+        Returns:
+            Currency configuration dict with multi_currency_enabled,
+            corporate_currency, currencies, advanced_currency_management,
+            and dated_rates.
+        """
+        result: dict[str, Any] = {
+            "multi_currency_enabled": False,
+            "corporate_currency": None,
+            "currencies": [],
+            "advanced_currency_management": False,
+            "dated_rates": [],
+        }
+
+        # Query active currencies — fails if Multi-Currency is not enabled
+        try:
+            currency_response = self.client.query(
+                "SELECT IsoCode, ConversionRate, DecimalPlaces, IsCorporate, IsActive "
+                "FROM CurrencyType WHERE IsActive = true ORDER BY IsoCode"
+            )
+        except Exception:
+            logger.info("CurrencyType query failed — Multi-Currency is not enabled.")
+            return result
+
+        result["multi_currency_enabled"] = True
+        currencies = []
+        for record in currency_response.get("records", []):
+            entry = {
+                "iso_code": record["IsoCode"],
+                "conversion_rate": record["ConversionRate"],
+                "decimal_places": record["DecimalPlaces"],
+                "is_corporate": record["IsCorporate"],
+            }
+            currencies.append(entry)
+            if record["IsCorporate"]:
+                result["corporate_currency"] = record["IsoCode"]
+        result["currencies"] = currencies
+
+        # Query dated conversion rates — fails if ACM is not enabled
+        try:
+            dated_response = self.client.query(
+                "SELECT IsoCode, ConversionRate, StartDate, NextStartDate "
+                "FROM DatedConversionRate "
+                "WHERE StartDate <= TODAY AND NextStartDate > TODAY "
+                "ORDER BY IsoCode"
+            )
+            result["advanced_currency_management"] = True
+            dated_rates = []
+            for record in dated_response.get("records", []):
+                dated_rates.append({
+                    "iso_code": record["IsoCode"],
+                    "conversion_rate": record["ConversionRate"],
+                    "start_date": record["StartDate"],
+                    "next_start_date": record["NextStartDate"],
+                })
+            result["dated_rates"] = dated_rates
+        except Exception:
+            logger.info(
+                "DatedConversionRate query failed — Advanced Currency Management is not enabled."
+            )
+
+        return result
+
     # ==================== Bulk API Operations ====================
 
     @_handle_salesforce_errors
