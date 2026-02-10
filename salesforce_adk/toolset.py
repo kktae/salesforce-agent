@@ -92,6 +92,11 @@ class SalesforceToolset(BaseToolset):
             make_tool(self.salesforce_describe_report),
             make_tool(self.salesforce_run_report_async),
             make_tool(self.salesforce_get_report_instance),
+            # File & Content tools
+            make_tool(self.salesforce_download_file),
+            make_tool(self.salesforce_get_record_files),
+            # Approval tools
+            make_tool(self.salesforce_get_approval_history),
             # Bulk API tools
             make_tool(self.salesforce_bulk_query),
             make_tool(self.salesforce_bulk_insert),
@@ -701,6 +706,102 @@ class SalesforceToolset(BaseToolset):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
         return ops.get_report_instance(report_id, instance_id)
+
+    # ==================== File & Content Tools ====================
+
+    async def salesforce_download_file(
+        self,
+        record_id: str,
+        sobject: str = "ContentVersion",
+        blob_field: str = "VersionData",
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """
+        Download file content from a Salesforce ContentVersion or Attachment record.
+
+        Returns the file as base64-encoded content along with metadata (title,
+        extension, size). Use salesforce_get_record_files first to discover
+        file IDs attached to a record.
+
+        Args:
+            record_id: The ContentVersion ID or Attachment ID to download
+            sobject: SObject type - "ContentVersion" (default) or "Attachment"
+            blob_field: Blob field name - "VersionData" (default for ContentVersion)
+                        or "Body" (for Attachment)
+            tool_context: ADK tool context for authentication
+
+        Returns:
+            Dict with content_base64 (base64-encoded file content), size_bytes,
+            and metadata (title, file_extension, content_size, etc.)
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.download_file(record_id, sobject=sobject, blob_field=blob_field)
+
+    async def salesforce_get_record_files(
+        self,
+        record_id: str,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """
+        List all files attached to a Salesforce record via ContentDocumentLink.
+
+        Queries ContentDocumentLink to find all files (ContentDocument) linked
+        to the given record. Returns file metadata including title, extension,
+        size, and the latest ContentVersion ID (which can be used with
+        salesforce_download_file to retrieve the actual content).
+
+        Args:
+            record_id: The parent record ID (e.g., Account, Opportunity, Contract ID)
+            tool_context: ADK tool context for authentication
+
+        Returns:
+            Dict with total_files count and files list containing
+            content_document_id, title, file_extension, content_size,
+            and latest_version_id for each file
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.get_record_files(record_id)
+
+    # ==================== Approval Tools ====================
+
+    async def salesforce_get_approval_history(
+        self,
+        record_id: str,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """
+        Get the approval process history for a Salesforce record.
+
+        Queries ProcessInstance and related StepsAndWorkitems to retrieve
+        the complete approval history for any record that has been submitted
+        for approval (e.g., Contract, Opportunity, Quote).
+
+        Args:
+            record_id: The target record ID to get approval history for
+            tool_context: ADK tool context for authentication
+
+        Returns:
+            Dict with total_instances count and instances list, each containing
+            id, status, created_date, completed_date, last_actor_name, and
+            steps (with step_status, comments, actor_name, original_actor_name)
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.get_approval_history(record_id)
 
     # ==================== Bulk API Tools ====================
 

@@ -1,5 +1,6 @@
 """Salesforce operations wrapper using simple-salesforce."""
 
+import base64
 import logging
 from functools import wraps
 from typing import Any, Optional
@@ -439,6 +440,148 @@ class SalesforceOperations:
             method="GET",
         )
         return result if result is not None else {}
+
+    # ==================== File & Content Operations ====================
+
+    @_handle_salesforce_errors
+    def download_file(
+        self,
+        record_id: str,
+        sobject: str = "ContentVersion",
+        blob_field: str = "VersionData",
+    ) -> dict[str, Any]:
+        """
+        Download binary content from a Salesforce record's blob field.
+
+        Args:
+            record_id: ContentVersion ID or Attachment ID
+            sobject: 'ContentVersion' or 'Attachment'
+            blob_field: Blob field name ('VersionData' for ContentVersion, 'Body' for Attachment)
+
+        Returns:
+            Dict with base64-encoded content, content_type, and file metadata
+        """
+        sobject_type = getattr(self.client, sobject)
+        raw_bytes = sobject_type.get_base64(
+            record_id, base64_field=blob_field
+        )
+
+        # Fetch metadata for the file
+        metadata: dict[str, Any] = {}
+        if sobject == "ContentVersion":
+            record = sobject_type.get(record_id)
+            metadata = {
+                "title": record.get("Title"),
+                "file_extension": record.get("FileExtension"),
+                "content_size": record.get("ContentSize"),
+                "version_number": record.get("VersionNumber"),
+                "content_document_id": record.get("ContentDocumentId"),
+            }
+        elif sobject == "Attachment":
+            record = sobject_type.get(record_id)
+            metadata = {
+                "name": record.get("Name"),
+                "content_type": record.get("ContentType"),
+                "body_length": record.get("BodyLength"),
+                "parent_id": record.get("ParentId"),
+            }
+
+        return {
+            "record_id": record_id,
+            "sobject": sobject,
+            "content_base64": base64.b64encode(raw_bytes).decode("ascii"),
+            "size_bytes": len(raw_bytes),
+            "metadata": metadata,
+        }
+
+    @_handle_salesforce_errors
+    def get_record_files(self, record_id: str) -> dict[str, Any]:
+        """
+        Get files attached to a Salesforce record via ContentDocumentLink.
+
+        Args:
+            record_id: The parent record ID (Account, Opportunity, Contract, etc.)
+
+        Returns:
+            Dict with list of file metadata (ContentDocument info, latest version info)
+        """
+        soql = (
+            "SELECT ContentDocumentId, "
+            "ContentDocument.Title, "
+            "ContentDocument.FileExtension, "
+            "ContentDocument.ContentSize, "
+            "ContentDocument.LatestPublishedVersionId "
+            "FROM ContentDocumentLink "
+            f"WHERE LinkedEntityId = '{record_id}'"
+        )
+        result = self.client.query(soql)
+        files = []
+        for record in result.get("records", []):
+            doc = record.get("ContentDocument") or {}
+            files.append({
+                "content_document_id": record.get("ContentDocumentId"),
+                "title": doc.get("Title"),
+                "file_extension": doc.get("FileExtension"),
+                "content_size": doc.get("ContentSize"),
+                "latest_version_id": doc.get("LatestPublishedVersionId"),
+            })
+        return {
+            "record_id": record_id,
+            "total_files": len(files),
+            "files": files,
+        }
+
+    # ==================== Approval Operations ====================
+
+    @_handle_salesforce_errors
+    def get_approval_history(self, record_id: str) -> dict[str, Any]:
+        """
+        Get the approval process history for a Salesforce record.
+
+        Args:
+            record_id: The target record ID (Contract, Opportunity, etc.)
+
+        Returns:
+            Dict with list of approval instances including steps, actors, and comments
+        """
+        soql = (
+            "SELECT Id, Status, CreatedDate, CompletedDate, LastActor.Name, "
+            "(SELECT Id, StepStatus, Comments, Actor.Name, OriginalActor.Name, "
+            "CreatedDate FROM StepsAndWorkitems ORDER BY CreatedDate) "
+            "FROM ProcessInstance "
+            f"WHERE TargetObjectId = '{record_id}' "
+            "ORDER BY CreatedDate DESC"
+        )
+        result = self.client.query(soql)
+        instances = []
+        for record in result.get("records", []):
+            last_actor = record.get("LastActor") or {}
+            steps_data = record.get("StepsAndWorkitems") or {}
+            steps = []
+            for step in steps_data.get("records", []):
+                actor = step.get("Actor") or {}
+                original_actor = step.get("OriginalActor") or {}
+                steps.append({
+                    "id": step.get("Id"),
+                    "step_status": step.get("StepStatus"),
+                    "comments": step.get("Comments"),
+                    "actor_name": actor.get("Name"),
+                    "original_actor_name": original_actor.get("Name"),
+                    "created_date": step.get("CreatedDate"),
+                })
+            instances.append({
+                "id": record.get("Id"),
+                "status": record.get("Status"),
+                "created_date": record.get("CreatedDate"),
+                "completed_date": record.get("CompletedDate"),
+                "last_actor_name": last_actor.get("Name"),
+                "steps": steps,
+            })
+        return {
+            "record_id": record_id,
+            "total_instances": len(instances),
+            "instances": instances,
+        }
 
     # ==================== Identity Operations ====================
 
