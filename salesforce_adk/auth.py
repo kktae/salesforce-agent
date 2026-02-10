@@ -20,6 +20,7 @@ SALESFORCE_CLIENT_ID = os.getenv("SALESFORCE_CLIENT_ID")
 SALESFORCE_CLIENT_SECRET = os.getenv("SALESFORCE_CLIENT_SECRET")
 SALESFORCE_AUTH_ID = os.getenv("SALESFORCE_AUTH_ID")
 SALESFORCE_API_VERSION = os.getenv("SALESFORCE_API_VERSION", "62.0")
+AGENT_TIMEZONE = os.getenv("AGENT_TIMEZONE", "Asia/Seoul")
 AGENTSPACE_MODE = os.getenv("AGENTSPACE_MODE", "").lower() in ("true", "1", "yes")
 
 # OAuth2 authentication scheme for Salesforce
