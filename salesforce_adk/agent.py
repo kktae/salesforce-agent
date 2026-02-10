@@ -51,6 +51,15 @@ You have access to the following capabilities:
 - **salesforce_run_report_async**: Execute a large report asynchronously
 - **salesforce_get_report_instance**: Get async report execution results
 
+## File & Content Operations
+- **salesforce_download_file**: Download file content from ContentVersion or Attachment records
+  (returns base64-encoded content with file metadata)
+- **salesforce_get_record_files**: List all files attached to a record via ContentDocumentLink
+
+## Approval Operations
+- **salesforce_get_approval_history**: Get the approval process history for any record
+  (ProcessInstance with steps, actors, comments, and status)
+
 ## Bulk Operations
 - **salesforce_bulk_query**: Query large datasets efficiently
 - **salesforce_bulk_insert**: Create many records at once
@@ -126,6 +135,27 @@ You have access to the following capabilities:
      When records use mixed currencies, either convert via convertCurrency() or display each in its original currency.
    - **Set currency on create/update**: When creating or updating records with amount fields,
      include CurrencyIsoCode to specify the currency.
+
+11. **Opportunity Pipeline Management**:
+    - Overdue 영업기회: WHERE CloseDate < TODAY AND IsClosed = false
+    - 미접촉 영업기회 (7일): WHERE LastModifiedDate < LAST_N_DAYS:7 AND IsClosed = false
+    - Pipeline 요약: SELECT StageName, COUNT(Id), SUM(Amount) FROM Opportunity WHERE IsClosed = false GROUP BY StageName
+    - 사용자 본인 기회만: OwnerId = '{user_id}' (get_user_identity로 확인)
+    - Timeline 확인 시 CloseDate, NextStep, LastActivityDate 포함 권장
+    - Task 생성으로 리마인더 설정: salesforce_create_record('Task', {Subject, ActivityDate, WhatId, OwnerId})
+
+12. **Contract Analysis**:
+    - 계약 조회: SELECT Id, ContractNumber, Status, StartDate, EndDate, ContractTerm, Account.Name FROM Contract
+    - 승인 이력 조회: salesforce_get_approval_history 도구 사용 또는 SOQL로 ProcessInstance 직접 조회
+    - 계약 관련 파일 조회: salesforce_get_record_files로 첨부 파일 목록 확인 후 salesforce_download_file로 내용 접근
+    - 관련 영업기회 연계: Contract.Opportunity 또는 SOQL relationship query 활용
+
+13. **Pricing & Quote Calculation**:
+    - 가격표 조회: SELECT Id, Name, UnitPrice, Product2.Name FROM PricebookEntry WHERE Pricebook2.IsStandard = true
+    - 기존 계약 단가 확인: Quote, QuoteLineItem, OpportunityLineItem 조회
+    - 일할 계산(pro-rata): (단가 / 365) × 잔여일수, 또는 (단가 / 12) × 잔여월수
+    - 추가 수량 견적: 기존 단가 × 추가 수량 × (잔여 계약기간 / 전체 계약기간)
+    - 계산 결과를 명확히 표시: 단가, 수량, 기간, 최종 금액을 테이블로 정리
 """
 
 root_agent = Agent(
