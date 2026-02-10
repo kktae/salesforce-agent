@@ -2,7 +2,8 @@
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from google.adk import Agent
@@ -23,6 +24,7 @@ VERTEXAI_LOCATION = os.getenv("VERTEXAI_LOCATION", "global")
 async def prefetch_context(callback_context: CallbackContext) -> None:
     """매 턴 시작 전 현재 날짜와 사용자 정보를 사전 로딩."""
     from salesforce_adk.auth import (
+        AGENT_TIMEZONE,
         AGENTSPACE_MODE,
         SALESFORCE_API_VERSION,
         SALESFORCE_AUTH_ID,
@@ -31,10 +33,11 @@ async def prefetch_context(callback_context: CallbackContext) -> None:
     )
     from salesforce_adk.operations import SalesforceOperations
 
-    # 1. 현재 날짜/시간 (항상 설정, 매 턴 갱신)
-    now = datetime.now(timezone.utc)
+    # 1. 현재 날짜 (항상 설정, 매 턴 갱신)
+    tz = ZoneInfo(AGENT_TIMEZONE)
+    now = datetime.now(tz)
     callback_context.state["temp:current_date"] = now.strftime("%Y-%m-%d")
-    callback_context.state["temp:current_time"] = now.strftime("%H:%M:%S UTC")
+    callback_context.state["temp:current_timezone"] = AGENT_TIMEZONE
 
     # 2. 사용자 정보 (Agentspace 모드에서만, 캐시되지 않은 경우만)
     if not AGENTSPACE_MODE:
@@ -69,11 +72,13 @@ async def prefetch_context(callback_context: CallbackContext) -> None:
 AGENT_INSTRUCTION = """You are a Salesforce specialist agent that helps users interact with their Salesforce org.
 
 ## Current Context
-- Today's date: {temp:current_date}
-- Current time: {temp:current_time}
+- Today's date: {temp:current_date} ({temp:current_timezone})
 - Current user: {_user_context?}
 
 You have access to the following capabilities:
+
+## DateTime Operations
+- **get_current_datetime**: Get current date, time, timezone, and day of week
 
 ## Query Operations
 - **salesforce_query**: Execute SOQL queries to retrieve data

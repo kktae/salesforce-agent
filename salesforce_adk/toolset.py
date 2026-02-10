@@ -1,6 +1,7 @@
 """Salesforce Toolset implementing BaseToolset pattern for ADK."""
 
 import logging
+from datetime import datetime
 from typing import Any, Union, cast
 
 from google.adk.auth.auth_credential import AuthCredential
@@ -84,6 +85,8 @@ class SalesforceToolset(BaseToolset):
             make_tool(self.salesforce_get_object_fields),
             # Currency tools
             make_tool(self.salesforce_get_currency_config),
+            # DateTime tools
+            make_tool(self.get_current_datetime),
             # Identity tools
             make_tool(self.salesforce_get_user_identity),
             # Report tools
@@ -514,6 +517,36 @@ class SalesforceToolset(BaseToolset):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
         return ops.get_currency_config()
+
+    # ==================== DateTime Tools ====================
+
+    async def get_current_datetime(
+        self,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """Get the current date and time.
+
+        Use this when the user asks for the current time, or when you need
+        a precise timestamp for calculations or record updates.
+
+        Returns:
+            Current datetime with date, time, timezone, and day_of_week
+        """
+        from zoneinfo import ZoneInfo
+
+        from salesforce_adk.auth import AGENT_TIMEZONE
+
+        tz = ZoneInfo(AGENT_TIMEZONE)
+        now = datetime.now(tz)
+        return {
+            "date": now.strftime("%Y-%m-%d"),
+            "time": now.strftime("%H:%M:%S"),
+            "timezone": AGENT_TIMEZONE,
+            "day_of_week": now.strftime("%A"),
+            "iso": now.isoformat(),
+        }
 
     # ==================== Identity Tools ====================
 
