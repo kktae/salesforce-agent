@@ -1,12 +1,18 @@
 """Salesforce ADK Agent definition."""
 
+import logging
 import os
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from google.adk import Agent
+from google.adk.agents.callback_context import CallbackContext
+from google.adk.models.lite_llm import LiteLlm
+from simple_salesforce.api import Salesforce
 
 from salesforce_adk.toolset import SalesforceToolset
-from google.adk.models.lite_llm import LiteLlm
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -14,7 +20,58 @@ AGENT_MODEL = os.getenv("AGENT_MODEL", "gemini-2.5-flash")
 VERTEXAI_PROJECT = os.getenv("VERTEXAI_PROJECT", "")
 VERTEXAI_LOCATION = os.getenv("VERTEXAI_LOCATION", "global")
 
+async def prefetch_context(callback_context: CallbackContext) -> None:
+    """매 턴 시작 전 현재 날짜와 사용자 정보를 사전 로딩."""
+    from salesforce_adk.auth import (
+        AGENTSPACE_MODE,
+        SALESFORCE_API_VERSION,
+        SALESFORCE_AUTH_ID,
+        SALESFORCE_INSTANCE_URL,
+        USER_IDENTITY_CACHE_KEY,
+    )
+    from salesforce_adk.operations import SalesforceOperations
+
+    # 1. 현재 날짜/시간 (항상 설정, 매 턴 갱신)
+    now = datetime.now(timezone.utc)
+    callback_context.state["temp:current_date"] = now.strftime("%Y-%m-%d")
+    callback_context.state["temp:current_time"] = now.strftime("%H:%M:%S UTC")
+
+    # 2. 사용자 정보 (Agentspace 모드에서만, 캐시되지 않은 경우만)
+    if not AGENTSPACE_MODE:
+        return
+    if USER_IDENTITY_CACHE_KEY in callback_context.state:
+        return
+
+    access_token = (
+        callback_context.state.get(SALESFORCE_AUTH_ID) if SALESFORCE_AUTH_ID else None
+    )
+    if not access_token or not SALESFORCE_INSTANCE_URL:
+        return
+
+    try:
+        client = Salesforce(
+            instance_url=SALESFORCE_INSTANCE_URL,
+            session_id=access_token,
+            version=SALESFORCE_API_VERSION,
+        )
+        identity = SalesforceOperations(client).get_user_identity()
+        if isinstance(identity, dict) and "error" not in identity:
+            callback_context.state[USER_IDENTITY_CACHE_KEY] = identity
+            callback_context.state["_user_context"] = (
+                f"{identity.get('name')} "
+                f"(username: {identity.get('preferred_username')}, "
+                f"user_id: {identity.get('user_id')})"
+            )
+    except Exception:
+        logger.warning("Failed to pre-fetch user identity", exc_info=True)
+
+
 AGENT_INSTRUCTION = """You are a Salesforce specialist agent that helps users interact with their Salesforce org.
+
+## Current Context
+- Today's date: {temp:current_date}
+- Current time: {temp:current_time}
+- Current user: {_user_context?}
 
 You have access to the following capabilities:
 
@@ -168,4 +225,5 @@ root_agent = Agent(
     description="Salesforce specialist agent for querying, managing records, and accessing metadata",
     instruction=AGENT_INSTRUCTION,
     tools=[SalesforceToolset()],
+    before_agent_callback=prefetch_context,
 )
