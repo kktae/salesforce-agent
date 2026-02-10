@@ -203,13 +203,11 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Execute a SOQL query against Salesforce.
+        """Execute a SOQL query against Salesforce.
 
         Args:
             soql: SOQL query string (e.g., "SELECT Id, Name FROM Account LIMIT 10")
             include_deleted: If True, includes deleted and archived records
-            tool_context: ADK tool context for authentication
 
         Returns:
             Query results containing totalSize, done, records, and nextRecordsUrl
@@ -227,12 +225,13 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Execute a SOQL query including deleted and archived records.
+        """Execute a SOQL query including soft-deleted and archived records.
+
+        Use this instead of salesforce_query when you need to find records
+        that have been moved to the Recycle Bin or archived.
 
         Args:
             soql: SOQL query string
-            tool_context: ADK tool context for authentication
 
         Returns:
             Query results including deleted/archived records
@@ -250,12 +249,10 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Fetch additional records from a paginated query result.
+        """Fetch additional records from a paginated query result.
 
         Args:
             next_records_url: The nextRecordsUrl from a previous query result
-            tool_context: ADK tool context for authentication
 
         Returns:
             Additional query results with records and possibly another nextRecordsUrl
@@ -273,12 +270,10 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Execute a SOSL (Salesforce Object Search Language) search.
+        """Execute a SOSL (Salesforce Object Search Language) search.
 
         Args:
             sosl: SOSL search string (e.g., "FIND {Acme} IN ALL FIELDS RETURNING Account(Name)")
-            tool_context: ADK tool context for authentication
 
         Returns:
             Search results grouped by object type
@@ -300,14 +295,12 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Get a Salesforce record by its ID.
+        """Get a Salesforce record by its ID.
 
         Args:
             sobject: SObject type name (e.g., "Account", "Contact", "Lead")
             record_id: The Salesforce record ID (18-character ID)
             fields: Comma-separated list of fields to retrieve. If empty, returns all fields.
-            tool_context: ADK tool context for authentication
 
         Returns:
             Record data with requested fields and attributes
@@ -329,13 +322,14 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Create a new Salesforce record.
+        """Create a new Salesforce record.
+
+        Use salesforce_describe_object first to check required fields
+        if you are unsure about the object's schema.
 
         Args:
             sobject: SObject type name (e.g., "Account", "Contact")
             data: Dictionary of field names and values for the new record
-            tool_context: ADK tool context for authentication
 
         Returns:
             Result containing id, success, and errors
@@ -355,14 +349,12 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Update an existing Salesforce record.
+        """Update an existing Salesforce record.
 
         Args:
             sobject: SObject type name
             record_id: The Salesforce record ID to update
             data: Dictionary of field names and new values
-            tool_context: ADK tool context for authentication
 
         Returns:
             Result with success status and status_code
@@ -388,13 +380,12 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Delete a Salesforce record.
+        """Delete a Salesforce record. This action is irreversible — confirm
+        with the user before executing.
 
         Args:
             sobject: SObject type name
             record_id: The Salesforce record ID to delete
-            tool_context: ADK tool context for authentication
 
         Returns:
             Result with success status and status_code
@@ -421,14 +412,12 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Upsert a record using an external ID field.
+        """Upsert a record using an external ID field.
 
         Args:
             sobject: SObject type name
             external_id_field: Name of the external ID field to match on
             data: Record data including the external ID field value
-            tool_context: ADK tool context for authentication
 
         Returns:
             Result containing id, success, and created flag
@@ -448,12 +437,10 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Get complete metadata for a Salesforce SObject.
+        """Get complete metadata for a Salesforce SObject.
 
         Args:
             sobject: SObject type name (e.g., "Account", "Contact", "CustomObject__c")
-            tool_context: ADK tool context for authentication
 
         Returns:
             Complete object metadata including name, label, fields, recordTypeInfos, etc.
@@ -470,11 +457,10 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any] | None:
-        """
-        List all available SObjects in the Salesforce org.
+        """List all available SObjects in the Salesforce org.
 
-        Args:
-            tool_context: ADK tool context for authentication
+        Use this to verify an object exists before querying it,
+        especially for custom objects.
 
         Returns:
             Dictionary containing sobjects list with name, label, keyPrefix, etc.
@@ -492,12 +478,10 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
-        """
-        Get field information for a Salesforce SObject.
+        """Get field information for a Salesforce SObject.
 
         Args:
             sobject: SObject type name (e.g., "Account", "Contact")
-            tool_context: ADK tool context for authentication
 
         Returns:
             List of field metadata dictionaries with name, label, type, etc.
@@ -516,15 +500,10 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Get the org's Multi-Currency configuration.
+        """Get the org's Multi-Currency configuration including corporate currency,
+        active currencies with conversion rates, and ACM status.
 
-        Returns corporate currency, active currencies with conversion rates,
-        and whether Advanced Currency Management is enabled.
         If Multi-Currency is not enabled, returns multi_currency_enabled=false.
-
-        Args:
-            tool_context: ADK tool context for authentication
 
         Returns:
             Currency configuration with corporate_currency, currencies,
@@ -544,20 +523,14 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Get the current authenticated user's identity information.
+        """Get the current authenticated user's identity information.
 
-        Returns the profile of the user whose credentials are being used,
-        including user_id, organization_id, name, email, username,
-        timezone, locale, and user_type.
-
-        Args:
-            tool_context: ADK tool context for authentication
+        Use this when the user refers to "my" records or asks "who am I".
+        The returned user_id can be used as OwnerId in SOQL WHERE clauses.
 
         Returns:
-            User identity information including user_id, organization_id,
-            name, email, username, preferred_username, zoneinfo, locale,
-            user_type, language, and photos
+            User identity with user_id, organization_id, name, email,
+            username, zoneinfo, locale, and user_type
         """
         client = await self._get_client(tool_context, credential)
         if error := self._check_auth(client):
@@ -573,11 +546,7 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> list[dict[str, Any]] | dict[str, Any]:
-        """
-        List recently viewed Salesforce reports (up to 200).
-
-        Args:
-            tool_context: ADK tool context for authentication
+        """List recently viewed Salesforce reports (up to 200).
 
         Returns:
             List of report summaries with id, name, url, etc.
@@ -597,8 +566,7 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Execute a Salesforce report synchronously.
+        """Execute a Salesforce report synchronously.
 
         Runs the report and returns results immediately. Supports dynamic
         filters to narrow results without modifying the saved report definition.
@@ -610,7 +578,6 @@ class SalesforceToolset(BaseToolset):
                      "column" (API name), "operator" (e.g. "equals", "greaterThan"),
                      and "value" (filter value).
             include_details: If True (default), include individual detail rows
-            tool_context: ADK tool context for authentication
 
         Returns:
             Report result with reportMetadata, factMap, groupingsDown, groupingsAcross
@@ -619,7 +586,9 @@ class SalesforceToolset(BaseToolset):
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
-        return ops.run_report(report_id, filters=filters, include_details=include_details)
+        return ops.run_report(
+            report_id, filters=filters, include_details=include_details
+        )
 
     async def salesforce_describe_report(
         self,
@@ -628,8 +597,7 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Get metadata for a Salesforce report.
+        """Get metadata for a Salesforce report.
 
         Returns the report's structure including columns, filters, groupings,
         and report type information. Useful for understanding a report before
@@ -637,7 +605,6 @@ class SalesforceToolset(BaseToolset):
 
         Args:
             report_id: The 15 or 18-character Salesforce report ID
-            tool_context: ADK tool context for authentication
 
         Returns:
             Report metadata with reportMetadata, reportTypeMetadata, reportExtendedMetadata
@@ -657,8 +624,7 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Request an asynchronous execution of a Salesforce report.
+        """Request an asynchronous execution of a Salesforce report.
 
         Use this for large reports that may exceed the synchronous timeout (2 min).
         Returns an instance ID that can be used with salesforce_get_report_instance
@@ -668,7 +634,6 @@ class SalesforceToolset(BaseToolset):
             report_id: The 15 or 18-character Salesforce report ID
             filters: Optional list of dynamic filters (same format as salesforce_run_report)
             include_details: If True (default), include individual detail rows
-            tool_context: ADK tool context for authentication
 
         Returns:
             Instance info containing "id" (instance ID), "status", and "requestDate"
@@ -677,7 +642,9 @@ class SalesforceToolset(BaseToolset):
         if error := self._check_auth(client):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
-        return ops.run_report_async(report_id, filters=filters, include_details=include_details)
+        return ops.run_report_async(
+            report_id, filters=filters, include_details=include_details
+        )
 
     async def salesforce_get_report_instance(
         self,
@@ -687,8 +654,7 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Get the result of an asynchronous report execution.
+        """Get the result of an asynchronous report execution.
 
         Retrieves results for a previously submitted async report run.
         If the report is still running, the status field will indicate progress.
@@ -696,7 +662,6 @@ class SalesforceToolset(BaseToolset):
         Args:
             report_id: The 15 or 18-character Salesforce report ID
             instance_id: The instance ID returned by salesforce_run_report_async
-            tool_context: ADK tool context for authentication
 
         Returns:
             Report result (same structure as salesforce_run_report) or status if still running
@@ -718,8 +683,7 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Download file content from a Salesforce ContentVersion or Attachment record.
+        """Download file content from a Salesforce ContentVersion or Attachment record.
 
         Returns the file as base64-encoded content along with metadata (title,
         extension, size). Use salesforce_get_record_files first to discover
@@ -730,7 +694,6 @@ class SalesforceToolset(BaseToolset):
             sobject: SObject type - "ContentVersion" (default) or "Attachment"
             blob_field: Blob field name - "VersionData" (default for ContentVersion)
                         or "Body" (for Attachment)
-            tool_context: ADK tool context for authentication
 
         Returns:
             Dict with content_base64 (base64-encoded file content), size_bytes,
@@ -749,8 +712,7 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        List all files attached to a Salesforce record via ContentDocumentLink.
+        """List all files attached to a Salesforce record via ContentDocumentLink.
 
         Queries ContentDocumentLink to find all files (ContentDocument) linked
         to the given record. Returns file metadata including title, extension,
@@ -759,7 +721,6 @@ class SalesforceToolset(BaseToolset):
 
         Args:
             record_id: The parent record ID (e.g., Account, Opportunity, Contract ID)
-            tool_context: ADK tool context for authentication
 
         Returns:
             Dict with total_files count and files list containing
@@ -781,8 +742,7 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any]:
-        """
-        Get the approval process history for a Salesforce record.
+        """Get the approval process history for a Salesforce record.
 
         Queries ProcessInstance and related StepsAndWorkitems to retrieve
         the complete approval history for any record that has been submitted
@@ -790,7 +750,6 @@ class SalesforceToolset(BaseToolset):
 
         Args:
             record_id: The target record ID to get approval history for
-            tool_context: ADK tool context for authentication
 
         Returns:
             Dict with total_instances count and instances list, each containing
@@ -813,13 +772,14 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
-        """
-        Execute a bulk query for large datasets.
+        """Execute a bulk SOQL query for large datasets (10,000+ records).
+
+        Use this instead of salesforce_query when you expect a very large
+        result set that would exceed standard query limits.
 
         Args:
             sobject: SObject type name (e.g., "Account", "Contact")
             soql: SOQL query string
-            tool_context: ADK tool context for authentication
 
         Returns:
             List of all matching records
@@ -838,13 +798,14 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
-        """
-        Bulk insert multiple records at once.
+        """Bulk insert multiple records at once.
+
+        Use this instead of salesforce_create_record when creating
+        200 or more records for better performance.
 
         Args:
             sobject: SObject type name
             records: List of record data dictionaries
-            tool_context: ADK tool context for authentication
 
         Returns:
             List of results for each record with success, id, and errors
@@ -863,13 +824,14 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
-        """
-        Bulk update multiple records at once.
+        """Bulk update multiple records at once.
+
+        Use this instead of salesforce_update_record when updating
+        200 or more records for better performance.
 
         Args:
             sobject: SObject type name
-            records: List of record data with Id field
-            tool_context: ADK tool context for authentication
+            records: List of record data with Id field included in each record
 
         Returns:
             List of results for each record with success, id, and errors
@@ -888,13 +850,15 @@ class SalesforceToolset(BaseToolset):
         tool_context: ToolContext,
         credential: AuthCredential | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
-        """
-        Bulk delete multiple records at once.
+        """Bulk delete multiple records at once. Confirm with the user
+        before executing as this action is irreversible.
+
+        Use this instead of salesforce_delete_record when deleting
+        200 or more records for better performance.
 
         Args:
             sobject: SObject type name
             record_ids: List of record IDs to delete
-            tool_context: ADK tool context for authentication
 
         Returns:
             List of results for each record with success, id, and errors
