@@ -54,3 +54,4 @@ SALESFORCE_AUTH_CONFIG = AuthConfig(
 
 # State keys for tool_context.state
 INSTANCE_URL_CACHE_KEY = "salesforce_instance_url"
+USER_IDENTITY_CACHE_KEY = "salesforce_user_identity"
