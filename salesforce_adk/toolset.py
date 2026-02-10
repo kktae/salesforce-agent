@@ -85,8 +85,8 @@ class SalesforceToolset(BaseToolset):
             make_tool(self.salesforce_get_object_fields),
             # Currency tools
             make_tool(self.salesforce_get_currency_config),
-            # DateTime tools
-            make_tool(self.get_current_datetime),
+            # DateTime tools (no auth required)
+            FunctionTool(func=self.get_current_datetime),
             # Identity tools
             make_tool(self.salesforce_get_user_identity),
             # Report tools
@@ -520,12 +520,7 @@ class SalesforceToolset(BaseToolset):
 
     # ==================== DateTime Tools ====================
 
-    async def get_current_datetime(
-        self,
-        *,
-        tool_context: ToolContext,
-        credential: AuthCredential | None = None,
-    ) -> dict[str, Any]:
+    async def get_current_datetime(self) -> dict[str, Any]:
         """Get the current date and time.
 
         Use this when the user asks for the current time, or when you need
