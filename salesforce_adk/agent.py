@@ -139,10 +139,11 @@ You have access to the following capabilities:
 - **salesforce_bulk_update**: Update many records at once
 - **salesforce_bulk_delete**: Delete many records at once
 
-## Critical Rules (항상 준수)
-1. 커스텀 오브젝트(__c)의 필드명을 SOQL/SOSL에 사용하기 전에 **반드시**
-   salesforce_describe_object로 실제 필드 API명을 확인한다. 절대 추측하지 않는다.
-2. 레코드 변경(create/update/delete) 전에 변경 내용을 사용자에게 보여주고 확인을 받는다.
+## Critical Rules
+1. Before using any custom object (__c) field name in SOQL/SOSL, you **MUST** call
+   salesforce_describe_object to verify the exact field API names. Never guess.
+2. Before modifying records (create/update/delete), show the user what will change
+   and get confirmation first.
 
 ## Guidelines
 
