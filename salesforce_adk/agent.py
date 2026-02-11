@@ -156,8 +156,10 @@ You have access to the following capabilities:
 3. **Object Discovery**: Before querying an unfamiliar or non-standard Salesforce object,
    use `salesforce_list_objects` to verify the object exists in the org, and
    `salesforce_describe_object` to confirm its field names and relationships.
-   Do NOT guess object names in SOQL — standard objects like Account, Contact,
-   Opportunity, Lead, Case, and Campaign are safe, but always verify others first.
+   Do NOT guess object or field names in SOQL — standard objects like Account, Contact,
+   Opportunity, Lead, Case, and Campaign are safe, but for any custom object (__c suffix)
+   you MUST call salesforce_describe_object first to get the exact field API names.
+   Never assume a field like "Opportunity__c" exists — always verify.
 
 4. **SOQL Queries**: Always validate SOQL syntax before executing. Common patterns:
    - SELECT Id, Name FROM Account WHERE Industry = 'Technology' LIMIT 10
@@ -302,18 +304,23 @@ You have access to the following capabilities:
       5) 수집된 정보를 종합하여 고객 현황 요약 제공
 
 19. **Billing Workflow**:
+    - **CRITICAL**: Billing/Invoice 관련 커스텀 오브젝트는 조직마다 이름과 필드가 다르다.
+      SOQL에서 커스텀 오브젝트 필드를 사용하기 전에 **반드시** 다음 순서를 따른다:
+      1) salesforce_list_objects로 Billing 관련 오브젝트 이름 확인 (예: BillingSchedule__c, Invoice__c 등)
+      2) salesforce_describe_object로 해당 오브젝트의 실제 필드명 확인 (Opportunity 참조 필드 포함)
+      3) 확인된 필드명으로만 SOQL 작성 — **절대 필드명을 추측하지 않는다**
     - **Billing Plan 생성 워크플로우**:
-      1) Opportunity 조회: Amount, CloseDate, ContractTerm(또는 관련 Contract) 확인
-      2) OpportunityLineItem 조회: 제품별 금액 확인
-      3) 분할 계산: 총 금액 / 분할 횟수 (월별, 분기별 등) — 사용자에게 분할 방식 확인
-      4) Billing Plan 레코드 생성: salesforce_create_record로 각 분할 건 생성
-      5) 생성 결과 테이블로 정리하여 보여주기
+      1) 위 필드 확인 절차 수행
+      2) Opportunity 조회: Amount, CloseDate, ContractTerm(또는 관련 Contract) 확인
+      3) OpportunityLineItem 조회: 제품별 금액 확인
+      4) 분할 계산: 총 금액 / 분할 횟수 (월별, 분기별 등) — 사용자에게 분할 방식 확인
+      5) Billing Plan 레코드 생성: salesforce_create_record로 각 분할 건 생성
+      6) 생성 결과 테이블로 정리하여 보여주기
     - **미발행/미생성 건 조회 패턴**:
-      - Closed Won인데 Billing Plan 미생성: Opportunity에서 StageName = 'Closed Won' 조회 후
-        관련 Billing Plan 존재 여부 크로스체크 (SOQL sub-query 또는 별도 쿼리)
-      - 미발행 인보이스: Invoice 오브젝트에서 Status가 'Draft' 또는 미전송 상태인 건 조회
-      - 조직마다 Billing/Invoice 오브젝트가 다를 수 있으므로 salesforce_list_objects와
-        salesforce_describe_object로 먼저 확인
+      1) 위 필드 확인 절차 수행
+      2) Closed Won인데 Billing Plan 미생성: Opportunity에서 StageName = 'Closed Won' 조회 후
+         관련 Billing Plan 존재 여부 크로스체크 (SOQL sub-query 또는 별도 쿼리)
+      3) 미발행 인보이스: Invoice 오브젝트에서 Status가 'Draft' 또는 미전송 상태인 건 조회
 """
 
 root_agent = Agent(
