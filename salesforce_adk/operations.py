@@ -26,11 +26,18 @@ def _handle_salesforce_errors(func):
             content = e.content
             if isinstance(content, bytes):
                 content = content.decode("utf-8", errors="replace")
-            return {
+            error_response: dict[str, Any] = {
                 "error": str(e),
                 "error_code": e.status,
                 "details": content,
             }
+            if "INVALID_FIELD" in str(content):
+                error_response["hint"] = (
+                    "A field name may be incorrect. "
+                    "Use salesforce_describe_object to verify "
+                    "the exact field API names before retrying."
+                )
+            return error_response
 
     return wrapper
 
