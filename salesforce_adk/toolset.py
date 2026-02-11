@@ -106,6 +106,9 @@ class SalesforceToolset(BaseToolset):
             make_tool(self.salesforce_get_record_files),
             # Approval tools
             make_tool(self.salesforce_get_approval_history),
+            make_tool(self.salesforce_submit_approval),
+            make_tool(self.salesforce_approve_reject),
+            make_tool(self.salesforce_get_pending_approvals),
             # Bulk API tools
             make_tool(self.salesforce_bulk_query),
             make_tool(self.salesforce_bulk_insert),
@@ -939,6 +942,95 @@ class SalesforceToolset(BaseToolset):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
         return ops.get_approval_history(record_id)
+
+    async def salesforce_submit_approval(
+        self,
+        record_id: str,
+        comments: str = "",
+        submitter_id: str = "",
+        next_approver_ids: list[str] | None = None,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """Submit a record for approval.
+
+        Initiates the approval process configured in Setup for the given record.
+        Use salesforce_get_approval_history to check the result after submission.
+
+        Args:
+            record_id: The record ID to submit for approval (e.g., Opportunity, Contract)
+            comments: Optional submission comments for the approver
+            submitter_id: Optional submitter user ID (defaults to current user)
+            next_approver_ids: Optional list of next approver user IDs
+
+        Returns:
+            Approval submission result with actorId, entityId, instanceId,
+            instanceStatus, and newWorkitemIds
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.submit_approval(record_id, comments, submitter_id, next_approver_ids)
+
+    async def salesforce_approve_reject(
+        self,
+        workitem_id: str,
+        action: str,
+        comments: str = "",
+        actor_id: str = "",
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """Approve or reject a pending approval request.
+
+        Processes a pending work item from the approval queue.
+        Use salesforce_get_pending_approvals to find workitem IDs first.
+
+        Args:
+            workitem_id: The ProcessInstanceWorkitem ID to act on
+            action: "Approve" or "Reject"
+            comments: Optional comments explaining the decision
+            actor_id: Optional actor user ID (defaults to current user)
+
+        Returns:
+            Approval action result with actorId, entityId, instanceId,
+            instanceStatus, and newWorkitemIds
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.approve_reject(workitem_id, action, comments, actor_id)
+
+    async def salesforce_get_pending_approvals(
+        self,
+        user_id: str = "",
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """List pending approval requests assigned to a user.
+
+        Queries ProcessInstanceWorkitem to find items awaiting approval.
+        If user_id is not specified, returns all pending items visible
+        to the current user.
+
+        Args:
+            user_id: Optional user ID to filter by assignee
+
+        Returns:
+            Dict with total_items count and items list containing workitem_id,
+            target_object_id, target_object_name, target_object_type, status,
+            created_date, and actor_name
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.get_pending_approvals(user_id)
 
     # ==================== Bulk API Tools ====================
 

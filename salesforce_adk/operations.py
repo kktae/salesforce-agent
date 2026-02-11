@@ -682,6 +682,117 @@ class SalesforceOperations:
             "instances": instances,
         }
 
+    @_handle_salesforce_errors
+    def submit_approval(
+        self,
+        record_id: str,
+        comments: str = "",
+        submitter_id: str = "",
+        next_approver_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Submit a record for approval.
+
+        Args:
+            record_id: The record ID to submit for approval
+            comments: Optional submission comments
+            submitter_id: Optional submitter user ID
+            next_approver_ids: Optional list of next approver user IDs
+
+        Returns:
+            Approval submission result
+        """
+        request: dict[str, Any] = {
+            "actionType": "Submit",
+            "contextId": record_id,
+            "comments": comments,
+        }
+        if submitter_id:
+            request["contextActorId"] = submitter_id
+        if next_approver_ids:
+            request["nextApproverIds"] = next_approver_ids
+
+        result = self.client.restful(
+            "process/approvals/", method="POST", json={"requests": [request]}
+        )
+        return result if result is not None else {}
+
+    @_handle_salesforce_errors
+    def approve_reject(
+        self,
+        workitem_id: str,
+        action: str,
+        comments: str = "",
+        actor_id: str = "",
+    ) -> dict[str, Any]:
+        """
+        Approve or reject a pending approval request.
+
+        Args:
+            workitem_id: The ProcessInstanceWorkitem ID
+            action: "Approve" or "Reject"
+            comments: Optional comments
+            actor_id: Optional actor user ID
+
+        Returns:
+            Approval action result
+        """
+        request: dict[str, Any] = {
+            "actionType": action,
+            "contextId": workitem_id,
+            "comments": comments,
+        }
+        if actor_id:
+            request["contextActorId"] = actor_id
+
+        result = self.client.restful(
+            "process/approvals/", method="POST", json={"requests": [request]}
+        )
+        return result if result is not None else {}
+
+    @_handle_salesforce_errors
+    def get_pending_approvals(self, user_id: str = "") -> dict[str, Any]:
+        """
+        Get pending approval items.
+
+        Args:
+            user_id: Optional user ID to filter by assignee
+
+        Returns:
+            Dict with total_items count and items list
+        """
+        where_clause = f"WHERE ActorId = '{user_id}'" if user_id else ""
+        soql = (
+            "SELECT Id, ProcessInstance.TargetObjectId, "
+            "ProcessInstance.TargetObject.Name, "
+            "ProcessInstance.TargetObject.Type, "
+            "ProcessInstance.Status, ProcessInstance.CreatedDate, "
+            "Actor.Name "
+            f"FROM ProcessInstanceWorkitem {where_clause} "
+            "ORDER BY ProcessInstance.CreatedDate DESC"
+        )
+        result = self.client.query(soql)
+        items = []
+        for record in result.get("records", []):
+            pi = record.get("ProcessInstance") or {}
+            target = pi.get("TargetObject") or {}
+            actor = record.get("Actor") or {}
+            items.append(
+                {
+                    "workitem_id": record.get("Id"),
+                    "target_object_id": pi.get("TargetObjectId"),
+                    "target_object_name": target.get("Name"),
+                    "target_object_type": target.get("Type"),
+                    "status": pi.get("Status"),
+                    "created_date": pi.get("CreatedDate"),
+                    "actor_name": actor.get("Name"),
+                }
+            )
+        return {
+            "total_items": len(items),
+            "items": items,
+        }
+
     # ==================== Identity Operations ====================
 
     @_handle_salesforce_errors
