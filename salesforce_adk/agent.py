@@ -21,6 +21,7 @@ AGENT_MODEL = os.getenv("AGENT_MODEL", "gemini-2.5-flash")
 VERTEXAI_PROJECT = os.getenv("VERTEXAI_PROJECT", "")
 VERTEXAI_LOCATION = os.getenv("VERTEXAI_LOCATION", "global")
 
+
 async def prefetch_context(callback_context: CallbackContext) -> None:
     """매 턴 시작 전 현재 날짜와 사용자 정보를 사전 로딩."""
     from salesforce_adk.auth import (
@@ -113,6 +114,13 @@ You have access to the following capabilities:
 - **salesforce_run_report_async**: Execute a large report asynchronously
 - **salesforce_get_report_instance**: Get async report execution results
 
+## Dashboard Operations
+- **salesforce_list_dashboards**: List recently viewed dashboards
+- **salesforce_get_dashboard_results**: Get dashboard data with optional filters (filter1/2/3)
+- **salesforce_describe_dashboard**: Get dashboard structure (components, filters, layout)
+- **salesforce_get_dashboard_status**: Check dashboard data freshness and refresh status
+- **salesforce_refresh_dashboard**: Trigger dashboard data refresh (200/hour limit)
+
 ## File & Content Operations
 - **salesforce_download_file**: Download file content from ContentVersion or Attachment records
   (returns base64-encoded content with file metadata)
@@ -182,7 +190,18 @@ You have access to the following capabilities:
    - **Result limits**: API responses cap at 2,000 rows regardless of sync/async mode.
      For complete data beyond this limit, suggest narrowing with filters or using SOQL bulk query.
 
-10. **Multi-Currency Handling**:
+10. **Dashboard Operations**:
+    - **Dashboards vs Reports vs SOQL**: Use Dashboard API when the user explicitly mentions "dashboard".
+      Dashboards aggregate data from multiple reports with filtered views.
+    - **Discovery flow**: salesforce_list_dashboards → salesforce_describe_dashboard
+      → salesforce_get_dashboard_results 순서로 사용
+    - **Dashboard filters**: Dashboards support up to 3 positional filters (filter1/2/3).
+      Use salesforce_describe_dashboard to check which filters are configured before applying them.
+    - **Refresh workflow**: If data is stale, call salesforce_refresh_dashboard then
+      poll salesforce_get_dashboard_status until status becomes IDLE.
+      Note: 200 refreshes/hour/org limit — use sparingly.
+
+11. **Multi-Currency Handling**:
    - **Always include CurrencyIsoCode**: When querying amount fields (Amount, AnnualRevenue, etc.),
      always include CurrencyIsoCode in the SELECT clause so amounts are shown with their currency.
    - **Use convertCurrency() for aggregation**: When summing, comparing, or sorting amounts across
@@ -198,7 +217,7 @@ You have access to the following capabilities:
    - **Set currency on create/update**: When creating or updating records with amount fields,
      include CurrencyIsoCode to specify the currency.
 
-11. **Opportunity Pipeline Management**:
+12. **Opportunity Pipeline Management**:
     - Overdue 영업기회: WHERE CloseDate < TODAY AND IsClosed = false
     - 미접촉 영업기회 (7일): WHERE LastModifiedDate < LAST_N_DAYS:7 AND IsClosed = false
     - Pipeline 요약: SELECT StageName, COUNT(Id), SUM(Amount) FROM Opportunity WHERE IsClosed = false GROUP BY StageName
@@ -206,13 +225,13 @@ You have access to the following capabilities:
     - Timeline 확인 시 CloseDate, NextStep, LastActivityDate 포함 권장
     - Task 생성으로 리마인더 설정: salesforce_create_record('Task', {Subject, ActivityDate, WhatId, OwnerId})
 
-12. **Contract Analysis**:
+13. **Contract Analysis**:
     - 계약 조회: SELECT Id, ContractNumber, Status, StartDate, EndDate, ContractTerm, Account.Name FROM Contract
     - 승인 이력 조회: salesforce_get_approval_history 도구 사용 또는 SOQL로 ProcessInstance 직접 조회
     - 계약 관련 파일 조회: salesforce_get_record_files로 첨부 파일 목록 확인 후 salesforce_download_file로 내용 접근
     - 관련 영업기회 연계: Contract.Opportunity 또는 SOQL relationship query 활용
 
-13. **Pricing & Quote Calculation**:
+14. **Pricing & Quote Calculation**:
     - 가격표 조회: SELECT Id, Name, UnitPrice, Product2.Name FROM PricebookEntry WHERE Pricebook2.IsStandard = true
     - 기존 계약 단가 확인: Quote, QuoteLineItem, OpportunityLineItem 조회
     - 일할 계산(pro-rata): (단가 / 365) * 잔여일수, 또는 (단가 / 12) * 잔여월수

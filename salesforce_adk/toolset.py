@@ -95,6 +95,12 @@ class SalesforceToolset(BaseToolset):
             make_tool(self.salesforce_describe_report),
             make_tool(self.salesforce_run_report_async),
             make_tool(self.salesforce_get_report_instance),
+            # Dashboard tools
+            make_tool(self.salesforce_list_dashboards),
+            make_tool(self.salesforce_get_dashboard_results),
+            make_tool(self.salesforce_describe_dashboard),
+            make_tool(self.salesforce_get_dashboard_status),
+            make_tool(self.salesforce_refresh_dashboard),
             # File & Content tools
             make_tool(self.salesforce_download_file),
             make_tool(self.salesforce_get_record_files),
@@ -717,6 +723,132 @@ class SalesforceToolset(BaseToolset):
             return error
         ops = SalesforceOperations(cast(Salesforce, client))
         return ops.get_report_instance(report_id, instance_id)
+
+    # ==================== Dashboard Tools ====================
+
+    async def salesforce_list_dashboards(
+        self,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> list[dict[str, Any]] | dict[str, Any]:
+        """List recently viewed Salesforce dashboards.
+
+        Returns:
+            List of dashboard summaries with id, name, url, etc.
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.list_dashboards()
+
+    async def salesforce_get_dashboard_results(
+        self,
+        dashboard_id: str,
+        filter1: str | None = None,
+        filter2: str | None = None,
+        filter3: str | None = None,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """Get dashboard data and component results with optional filters.
+
+        Dashboards support up to 3 positional filters (filter1/2/3).
+        Use salesforce_describe_dashboard first to see which filters are
+        configured and what values they accept.
+
+        Args:
+            dashboard_id: The 15 or 18-character Salesforce dashboard ID
+            filter1: Optional first positional filter value
+            filter2: Optional second positional filter value
+            filter3: Optional third positional filter value
+
+        Returns:
+            Dashboard data with componentData containing each component's results
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.get_dashboard_results(
+            dashboard_id, filter1=filter1, filter2=filter2, filter3=filter3
+        )
+
+    async def salesforce_describe_dashboard(
+        self,
+        dashboard_id: str,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """Get metadata for a Salesforce dashboard.
+
+        Returns the dashboard's structure including components, filters,
+        and layout information. Use this to discover available filters
+        before calling salesforce_get_dashboard_results.
+
+        Args:
+            dashboard_id: The 15 or 18-character Salesforce dashboard ID
+
+        Returns:
+            Dashboard metadata with components, filters, and layout
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.describe_dashboard(dashboard_id)
+
+    async def salesforce_get_dashboard_status(
+        self,
+        dashboard_id: str,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """Check dashboard data freshness and refresh status per component.
+
+        Use this to determine if dashboard data is stale before deciding
+        whether to trigger a refresh with salesforce_refresh_dashboard.
+
+        Args:
+            dashboard_id: The 15 or 18-character Salesforce dashboard ID
+
+        Returns:
+            Status info with component-level data freshness and refresh state
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.get_dashboard_status(dashboard_id)
+
+    async def salesforce_refresh_dashboard(
+        self,
+        dashboard_id: str,
+        *,
+        tool_context: ToolContext,
+        credential: AuthCredential | None = None,
+    ) -> dict[str, Any]:
+        """Trigger a dashboard data refresh.
+
+        Refreshes all component data in the dashboard. Limited to 200
+        refreshes per hour per org. Use salesforce_get_dashboard_status
+        to check when the refresh completes (status becomes IDLE).
+
+        Args:
+            dashboard_id: The 15 or 18-character Salesforce dashboard ID
+
+        Returns:
+            Refresh result with updated dashboard data
+        """
+        client = await self._get_client(tool_context, credential)
+        if error := self._check_auth(client):
+            return error
+        ops = SalesforceOperations(cast(Salesforce, client))
+        return ops.refresh_dashboard(dashboard_id)
 
     # ==================== File & Content Tools ====================
 

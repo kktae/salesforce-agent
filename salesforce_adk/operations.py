@@ -441,6 +441,101 @@ class SalesforceOperations:
         )
         return result if result is not None else {}
 
+    # ==================== Dashboard Operations ====================
+
+    @_handle_salesforce_errors
+    def list_dashboards(self) -> list[dict[str, Any]]:
+        """
+        List recently viewed dashboards.
+
+        Returns:
+            List of dashboard summary dicts with id, name, url, etc.
+        """
+        result = self.client.restful("analytics/dashboards", method="GET")
+        return result if result is not None else []
+
+    @_handle_salesforce_errors
+    def get_dashboard_results(
+        self,
+        dashboard_id: str,
+        filter1: Optional[str] = None,
+        filter2: Optional[str] = None,
+        filter3: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """
+        Get dashboard data and component results with optional filters.
+
+        Args:
+            dashboard_id: The 15/18-character dashboard ID
+            filter1: Optional first positional filter value
+            filter2: Optional second positional filter value
+            filter3: Optional third positional filter value
+
+        Returns:
+            Dashboard data with component results
+        """
+        params = {}
+        if filter1 is not None:
+            params["filter1"] = filter1
+        if filter2 is not None:
+            params["filter2"] = filter2
+        if filter3 is not None:
+            params["filter3"] = filter3
+        result = self.client.restful(
+            f"analytics/dashboards/{dashboard_id}",
+            method="GET",
+            params=params if params else None,
+        )
+        return result if result is not None else {}
+
+    @_handle_salesforce_errors
+    def describe_dashboard(self, dashboard_id: str) -> dict[str, Any]:
+        """
+        Get dashboard structure metadata (components, filters, layout).
+
+        Args:
+            dashboard_id: The 15/18-character dashboard ID
+
+        Returns:
+            Dashboard metadata with components, filters, and layout info
+        """
+        result = self.client.restful(
+            f"analytics/dashboards/{dashboard_id}/describe", method="GET"
+        )
+        return result if result is not None else {}
+
+    @_handle_salesforce_errors
+    def get_dashboard_status(self, dashboard_id: str) -> dict[str, Any]:
+        """
+        Get dashboard data freshness and refresh status per component.
+
+        Args:
+            dashboard_id: The 15/18-character dashboard ID
+
+        Returns:
+            Status info with component-level data freshness
+        """
+        result = self.client.restful(
+            f"analytics/dashboards/{dashboard_id}/status", method="GET"
+        )
+        return result if result is not None else {}
+
+    @_handle_salesforce_errors
+    def refresh_dashboard(self, dashboard_id: str) -> dict[str, Any]:
+        """
+        Trigger a dashboard data refresh.
+
+        Args:
+            dashboard_id: The 15/18-character dashboard ID
+
+        Returns:
+            Refresh result with updated dashboard data
+        """
+        result = self.client.restful(
+            f"analytics/dashboards/{dashboard_id}", method="PUT", json={}
+        )
+        return result if result is not None else {}
+
     # ==================== File & Content Operations ====================
 
     @_handle_salesforce_errors
