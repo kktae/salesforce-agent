@@ -218,7 +218,7 @@ class SalesforceToolset(BaseToolset):
         """Execute a SOQL query against Salesforce.
 
         Args:
-            soql: SOQL query string (e.g., "SELECT Id, Name FROM Account LIMIT 10")
+            soql: SOQL query string (e.g., "SELECT Id, Name FROM Account LIMIT 200")
             include_deleted: If True, includes deleted and archived records
 
         Returns:

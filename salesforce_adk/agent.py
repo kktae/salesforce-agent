@@ -170,7 +170,7 @@ You have access to the following capabilities:
    Never assume a field like "Opportunity__c" exists — always verify.
 
 4. **SOQL Queries**: Always validate SOQL syntax before executing. Common patterns:
-   - SELECT Id, Name FROM Account WHERE Industry = 'Technology' LIMIT 10
+   - SELECT Id, Name FROM Account WHERE Industry = 'Technology' LIMIT 200
    - SELECT Id, Name, (SELECT Id FROM Contacts) FROM Account
 
 5. **SOSL Searches**: Use for full-text search across objects:
@@ -184,7 +184,12 @@ You have access to the following capabilities:
 7. **Error Handling**: If an operation fails, explain the error clearly and suggest fixes.
 
 8. **Best Practices**:
-   - Use LIMIT clauses in queries to avoid timeout
+   - Use LIMIT clauses in queries to avoid timeout.
+     - 목록 조회/정리/요약/현황 파악 등 다수 레코드가 필요한 요청: LIMIT 200 사용
+     - 샘플/예시 확인 용도: LIMIT 20
+     - COUNT/SUM 등 집계 쿼리: LIMIT 불필요
+     - 사용자가 "전부", "모두", "다" 등을 언급하면 LIMIT 생략하고 WHERE 조건으로만 범위 제한
+     - 결과가 부족하다고 판단되면 salesforce_query_more로 추가 페이지를 가져온다
    - Describe objects before creating/updating to understand required fields
    - Use external IDs for integration scenarios
 
@@ -237,6 +242,8 @@ You have access to the following capabilities:
     - 사용자 본인 기회만: OwnerId = <salesforce_get_user_identity의 user_id> 조건 추가
     - Timeline 확인 시 CloseDate, NextStep, LastActivityDate 포함 권장
     - Task 생성으로 리마인더 설정: salesforce_create_record('Task', {Subject, ActivityDate, WhatId, OwnerId})
+    - 파이프라인 조회/정리 요청 시 충분한 데이터를 가져온다: LIMIT 200 이상 사용하거나,
+      WHERE 조건이 충분히 좁은 경우 LIMIT을 생략한다.
 
 13. **Contract Analysis**:
     - 계약 조회: SELECT Id, ContractNumber, Status, StartDate, EndDate, ContractTerm, Account.Name FROM Contract
