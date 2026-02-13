@@ -3,12 +3,15 @@
 import logging
 import os
 from datetime import datetime
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from google.adk import Agent
 from google.adk.agents.callback_context import CallbackContext
 from google.adk.models.lite_llm import LiteLlm
+from google.adk.tools.base_tool import BaseTool
+from google.adk.tools.tool_context import ToolContext
 from simple_salesforce.api import Salesforce
 
 from salesforce_adk.toolset import SalesforceToolset
@@ -68,6 +71,48 @@ async def prefetch_context(callback_context: CallbackContext) -> None:
             )
     except Exception:
         logger.warning("Failed to pre-fetch user identity", exc_info=True)
+
+
+TOOL_LABELS: dict[str, str] = {
+    "salesforce_query": "SOQL 쿼리 실행",
+    "salesforce_search": "SOSL 검색",
+    "salesforce_query_more": "추가 페이지 조회",
+    "salesforce_get_record": "레코드 상세 조회",
+    "salesforce_create_record": "레코드 생성",
+    "salesforce_update_record": "레코드 수정",
+    "salesforce_delete_record": "레코드 삭제",
+    "salesforce_upsert_record": "레코드 Upsert",
+    "salesforce_describe_object": "오브젝트 구조 조회",
+    "salesforce_list_objects": "오브젝트 목록 조회",
+    "salesforce_get_user_identity": "사용자 정보 조회",
+    "salesforce_run_report": "리포트 실행",
+    "salesforce_list_reports": "리포트 목록 조회",
+    "salesforce_describe_report": "리포트 구조 조회",
+    "salesforce_get_dashboard_results": "대시보드 결과 조회",
+    "salesforce_bulk_query": "대량 쿼리 실행",
+    "salesforce_submit_approval": "승인 제출",
+    "salesforce_approve_reject": "승인/반려 처리",
+    "salesforce_get_approval_history": "승인 이력 조회",
+    "salesforce_get_pending_approvals": "승인 대기건 조회",
+}
+
+
+async def log_tool_usage(
+    tool: BaseTool, args: dict[str, Any], tool_context: ToolContext
+) -> dict | None:
+    """도구 호출 시 state에 현재 단계 정보를 기록하는 콜백."""
+    step = tool_context.state.get("temp:tool_step", 0) + 1
+    tool_context.state["temp:tool_step"] = step
+
+    label = TOOL_LABELS.get(tool.name, tool.name)
+    # 주요 인자만 요약 (SOQL, object_name 등)
+    hint = args.get("soql") or args.get("object_name") or args.get("record_id") or ""
+    if isinstance(hint, str) and len(hint) > 120:
+        hint = hint[:120] + "…"
+
+    tool_context.state["temp:current_tool_label"] = f"[Step {step}] {label}"
+    tool_context.state["temp:current_tool_hint"] = hint
+    return None  # 도구 실행 계속 진행
 
 
 AGENT_INSTRUCTION = """You are a Salesforce specialist agent that helps users interact with their Salesforce org.
@@ -336,6 +381,15 @@ You have access to the following capabilities:
       2) Closed Won인데 Billing Plan 미생성: Opportunity에서 StageName = 'Closed Won' 조회 후
          관련 Billing Plan 존재 여부 크로스체크 (SOQL sub-query 또는 별도 쿼리)
       3) 미발행 인보이스: Invoice 오브젝트에서 Status가 'Draft' 또는 미전송 상태인 건 조회
+
+20. **작업 흐름 안내 (Workflow Communication)**:
+    - 도구를 호출하기 전에 사용자에게 무엇을 하려는지 한 줄로 안내한다.
+      예: "영업기회 목록을 조회하겠습니다." / "Account 상세 정보를 확인합니다."
+    - 여러 도구를 연속 호출할 때는 단계를 번호로 표시한다.
+      예: "1단계: 영업기회 조회 → 2단계: 각 건의 상태 확인 → 3단계: 결과 정리"
+    - 각 도구 호출 결과를 받은 후 간단히 중간 요약하고 다음 단계를 안내한다.
+      예: "32건의 미종료 영업기회를 확인했습니다. 마감일 기준으로 분석하겠습니다."
+    - 단, 안내 메시지는 짧고 간결하게 유지한다. 과도한 설명은 오히려 방해가 된다.
 """
 
 root_agent = Agent(
@@ -349,4 +403,5 @@ root_agent = Agent(
     instruction=AGENT_INSTRUCTION,
     tools=[SalesforceToolset()],
     before_agent_callback=prefetch_context,
+    before_tool_callback=log_tool_usage,
 )
