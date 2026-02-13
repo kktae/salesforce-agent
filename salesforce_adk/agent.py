@@ -42,6 +42,7 @@ async def prefetch_context(callback_context: CallbackContext) -> None:
     now = datetime.now(tz)
     callback_context.state["temp:current_date"] = now.strftime("%Y-%m-%d")
     callback_context.state["temp:current_timezone"] = AGENT_TIMEZONE
+    callback_context.state["temp:tool_step"] = 0
 
     # 2. 사용자 정보 (Agentspace 모드에서만, 캐시되지 않은 경우만)
     if not AGENTSPACE_MODE:
@@ -191,6 +192,8 @@ You have access to the following capabilities:
    Never guess field names.
 2. Before modifying records (create/update/delete), show the user what will change
    and get confirmation first.
+3. 도구를 호출하기 전에 반드시 사용자에게 무엇을 하려는지 한 줄로 안내한다.
+   여러 도구를 연속 호출할 때는 각 단계 사이에 중간 결과를 요약한다.
 
 ## Guidelines
 
