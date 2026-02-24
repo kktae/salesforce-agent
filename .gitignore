@@ -44,3 +44,5 @@ htmlcov/
 .adk
 
 docs/
+
+.mcp.json
