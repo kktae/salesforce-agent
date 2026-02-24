@@ -5,8 +5,8 @@ description = "Salesforce ADK for Google Agent Engine"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "google-adk>=1.24.1",
-    "google-cloud-aiplatform[agent_engines,adk]>=1.136.0",
+    "google-adk>=1.25.1",
+    "google-cloud-aiplatform[agent_engines,adk]>=1.138.0",
     "litellm>=1.81.9",
     "python-dotenv>=1.2.1",
     "simple-salesforce>=1.12.9",
@@ -20,5 +20,5 @@ extraPaths = ["."]
 dev = [
     "pyright>=1.1.408",
     "pytest>=9.0.2",
-    "ruff>=0.15.0",
+    "ruff>=0.15.2",
 ]
