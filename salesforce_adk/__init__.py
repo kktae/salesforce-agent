@@ -1,8 +1,8 @@
 """Salesforce ADK Agent Package."""
 
-from salesforce_adk.agent import root_agent
-from salesforce_adk.operations import SalesforceOperations
-from salesforce_adk.toolset import SalesforceToolset
+from salesforce_agent.agent import root_agent
+from salesforce_agent.operations import SalesforceOperations
+from salesforce_agent.toolset import SalesforceToolset
 
 __all__ = [
     "root_agent",

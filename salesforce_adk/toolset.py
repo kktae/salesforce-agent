@@ -12,7 +12,7 @@ from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
 from simple_salesforce.api import Salesforce
 
-from salesforce_adk.auth import (
+from salesforce_agent.auth import (
     AGENTSPACE_MODE,
     SALESFORCE_API_VERSION,
     SALESFORCE_AUTH_CONFIG,
@@ -21,7 +21,7 @@ from salesforce_adk.auth import (
     SALESFORCE_LOGIN_URL,
     INSTANCE_URL_CACHE_KEY,
 )
-from salesforce_adk.operations import SalesforceOperations
+from salesforce_agent.operations import SalesforceOperations
 
 logger = logging.getLogger(__name__)
 
@@ -540,7 +540,7 @@ class SalesforceToolset(BaseToolset):
         """
         from zoneinfo import ZoneInfo
 
-        from salesforce_adk.auth import AGENT_TIMEZONE
+        from salesforce_agent.auth import AGENT_TIMEZONE
 
         tz = ZoneInfo(AGENT_TIMEZONE)
         now = datetime.now(tz)
@@ -569,7 +569,7 @@ class SalesforceToolset(BaseToolset):
             User identity with user_id, organization_id, name, email,
             username, zoneinfo, locale, and user_type
         """
-        from salesforce_adk.auth import USER_IDENTITY_CACHE_KEY
+        from salesforce_agent.auth import USER_IDENTITY_CACHE_KEY
 
         # 캐시 확인
         cached = tool_context.state.get(USER_IDENTITY_CACHE_KEY)

@@ -40,7 +40,7 @@ _DEPLOY_ENV_KEYS = [
     "AGENTSPACE_MODE",
     "AGENT_TIMEZONE",
     "LOG_LEVEL",
-    "SALESFORCE_ADK_LOG_LEVEL",
+    "SALESFORCE_AGENT_LOG_LEVEL",
     "GOOGLE_ADK_LOG_LEVEL",
     # Tracing / Telemetry
     "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY",
@@ -110,7 +110,7 @@ class DeploymentManager:
     @staticmethod
     def _build_adk_app() -> AdkApp:
         """Wrap the root agent in an AdkApp for deployment."""
-        from salesforce_adk.agent import root_agent
+        from salesforce_agent.agent import root_agent
 
         return AdkApp(agent=root_agent)
 
@@ -161,7 +161,7 @@ class DeploymentManager:
             "staging_bucket": self.staging_bucket,
             "gcs_dir_name": gcs_dir_name,
             "requirements": self._get_requirements(),
-            "extra_packages": ["./salesforce_adk"],
+            "extra_packages": ["./salesforce_agent"],
             "display_name": display_name,
             "description": description,
             "labels": resolved_labels,
@@ -221,7 +221,7 @@ class DeploymentManager:
             "staging_bucket": self.staging_bucket,
             "gcs_dir_name": gcs_dir_name,
             "requirements": self._get_requirements(),
-            "extra_packages": ["./salesforce_adk"],
+            "extra_packages": ["./salesforce_agent"],
             "display_name": display_name,
             "description": description,
             "labels": resolved_labels,

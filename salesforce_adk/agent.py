@@ -14,7 +14,7 @@ from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.tool_context import ToolContext
 from simple_salesforce.api import Salesforce
 
-from salesforce_adk.toolset import SalesforceToolset
+from salesforce_agent.toolset import SalesforceToolset
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ VERTEXAI_LOCATION = os.getenv("VERTEXAI_LOCATION", "global")
 
 async def prefetch_context(callback_context: CallbackContext) -> None:
     """매 턴 시작 전 현재 날짜와 사용자 정보를 사전 로딩."""
-    from salesforce_adk.auth import (
+    from salesforce_agent.auth import (
         AGENT_TIMEZONE,
         AGENTSPACE_MODE,
         SALESFORCE_API_VERSION,
@@ -35,7 +35,7 @@ async def prefetch_context(callback_context: CallbackContext) -> None:
         SALESFORCE_INSTANCE_URL,
         USER_IDENTITY_CACHE_KEY,
     )
-    from salesforce_adk.operations import SalesforceOperations
+    from salesforce_agent.operations import SalesforceOperations
 
     # 1. 현재 날짜 (항상 설정, 매 턴 갱신)
     tz = ZoneInfo(AGENT_TIMEZONE)

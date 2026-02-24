@@ -1,5 +1,5 @@
 [project]
-name = "salesforce-adk"
+name = "salesforce-agent"
 version = "0.1.0"
 description = "Salesforce ADK for Google Agent Engine"
 readme = "README.md"
