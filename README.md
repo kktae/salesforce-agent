@@ -86,6 +86,37 @@ sequenceDiagram
 
 ---
 
+## Salesforce Setup
+
+Salesforce에서 **External Client App**을 생성하고 아래와 같이 설정합니다.
+
+![Salesforce External Client App Settings](assets/sfdc-external-client-setting.png)
+
+**OAuth Settings**
+
+| Item | Value |
+|---|---|
+| Callback URL | `https://vertexaisearch.cloud.google.com/oauth-redirect` |
+| Callback URL | `http://localhost:8000/dev-ui/` |
+| OAuth Scopes | `api`, `refresh_token`, `id` (identity URL service) |
+
+**Flow Enablement** — 아래 항목을 활성화합니다.
+
+- Enable Client Credentials Flow
+- Enable Authorization Code and Credentials Flow
+- Require user credentials in the POST body for Authorization Code and Credentials Flow
+
+**Security** — 아래 항목을 활성화합니다.
+
+- Require secret for Web Server Flow
+- Require secret for Refresh Token Flow
+- Require Proof Key for Code Exchange (PKCE) extension
+- Enable Refresh Token Rotation
+
+설정 완료 후 **Consumer Key and Secret**을 복사하여 `.env`의 `SALESFORCE_CLIENT_ID`, `SALESFORCE_CLIENT_SECRET`에 입력합니다.
+
+---
+
 ## Quick Start
 
 **1. Install**
