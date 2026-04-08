@@ -11,7 +11,7 @@ flowchart TB
     User(["User"]) -->|natural language| Agent
 
     subgraph ADK["Google ADK Runtime"]
-        Agent["Gemini Agent\nroot_agent"]
+        Agent["Salesforce Agent\nroot_agent"]
         Toolset["SalesforceToolset\n40+ FunctionTools"]
         Ops["SalesforceOperations\nsimple-salesforce"]
         Agent -->|tool calls| Toolset
@@ -38,7 +38,7 @@ flowchart TB
 ```mermaid
 sequenceDiagram
     actor User
-    participant Agent as Gemini Agent
+    participant Agent as Salesforce Agent
     participant ADK as Google ADK
     participant SF_OAuth as Salesforce OAuth
     participant SF_API as Salesforce API
@@ -113,7 +113,7 @@ Salesforce에서 **External Client App**을 생성하고 아래와 같이 설정
 - Require Proof Key for Code Exchange (PKCE) extension
 - Enable Refresh Token Rotation
 
-설정 완료 후 **Consumer Key and Secret**을 복사하여 `.env`의 `SALESFORCE_CLIENT_ID`, `SALESFORCE_CLIENT_SECRET`에 입력합니다.
+설정 완료 후 **Key and Secret**을 복사하여 `.env`의 `SALESFORCE_CLIENT_ID`, `SALESFORCE_CLIENT_SECRET`에 입력합니다.
 
 ---
 
@@ -148,8 +148,8 @@ uv run adk web
 | `VERTEXAI_PROJECT` | Google Cloud project ID | — |
 | `VERTEXAI_LOCATION` | Region | `global` |
 | `AGENT_MODEL` | Gemini model ID | `gemini-2.0-flash` |
-| `SALESFORCE_CLIENT_ID` | Connected App consumer key | — |
-| `SALESFORCE_CLIENT_SECRET` | Connected App consumer secret | — |
+| `SALESFORCE_CLIENT_ID` | Connected App client key | — |
+| `SALESFORCE_CLIENT_SECRET` | Connected App client secret | — |
 | `SALESFORCE_LOGIN_URL` | Auth endpoint | `https://login.salesforce.com` |
 | `SALESFORCE_INSTANCE_URL` | Org instance URL | — |
 | `SALESFORCE_API_VERSION` | API version | `65.0` |
