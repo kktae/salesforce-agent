@@ -3,6 +3,8 @@
 import json
 import logging
 import os
+import tomllib
+from pathlib import Path
 
 import vertexai
 from vertexai.agent_engines import AdkApp
@@ -96,16 +98,15 @@ class DeploymentManager:
 
     @staticmethod
     def _get_requirements() -> list[str]:
-        """Return pip requirements for the deployed agent."""
-        return [
-            "cloudpickle",
-            "pydantic",
-            "google-cloud-aiplatform[agent_engines,adk]",
-            "google-adk",
-            "simple-salesforce",
-            "python-dotenv",
-            "litellm",
-        ]
+        """Return pip requirements from pyproject.toml for deployment."""
+        pyproject_path = Path(__file__).parent / "pyproject.toml"
+        with open(pyproject_path, "rb") as f:
+            pyproject = tomllib.load(f)
+
+        deps = pyproject["project"]["dependencies"]
+        # Agent Engine 배포에 필요한 추가 런타임 패키지
+        extra_runtime = ["cloudpickle", "pydantic"]
+        return extra_runtime + list(deps)
 
     @staticmethod
     def _build_adk_app() -> AdkApp:

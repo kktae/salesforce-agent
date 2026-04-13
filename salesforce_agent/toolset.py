@@ -42,6 +42,7 @@ class SalesforceToolset(BaseToolset):
         Args:
             tool_filter: Optional predicate to filter which tools are exposed
         """
+        super().__init__(tool_filter=tool_filter)
         self._tool_filter = tool_filter
 
     async def get_tools(
